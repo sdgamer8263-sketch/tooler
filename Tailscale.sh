@@ -120,6 +120,8 @@ while true; do
             ;;
         3)
             echo -e "\n${CYAN}Goodbye!${NC}\n"
+            
+         bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/run.sh)
             exit 0
             ;;
         *)
