@@ -24,7 +24,7 @@ show_menu() {
     echo "9. IP Check"
     echo "0. Exit"
     echo "==============================================="
-    read -p "Select an option [1-9]: " main_choice
+    read -p "Select an option [0-9]: " main_choice
 
     case $main_choice in
         1) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/cloudflare.sh) ;;
@@ -35,10 +35,17 @@ show_menu() {
         6) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/rdp.sh) ;;
         7) show_rdp_menu ;;
         8) curl -sSf https://sshx.io/get | sh -s run ;;
-        9) curl -4 icanhazip.com ; read -p "Press Enter to continue..." ;;
+        9) curl -4 icanhazip.com ;;
         0) exit 0 ;;
         *) echo -e "\e[1;31m\nInvalid Option!\e[0m"; sleep 2; show_menu ;;
     esac
+
+    # Option 7 chara baki sob gular por Enter chibe
+    if [ "$main_choice" != "7" ]; then
+        echo -e "\n\e[1;33mTask Finished.\e[0m"
+        read -p "Press Enter to go back to Main Menu..."
+        show_menu
+    fi
 }
 
 # Function for Option 7 (Only RDP Sub-menu)
@@ -63,9 +70,15 @@ show_rdp_menu() {
     case $rdp_choice in
         [Aa]) 
             curl -fsSL https://raw.githubusercontent.com/sdgamer8263-sketch/Rdp/main/install.sh | sudo bash 
+            echo -e "\n\e[1;33mTask Finished.\e[0m"
+            read -p "Press Enter to go back to RDP Menu..."
+            show_rdp_menu
             ;;
         [Bb]) 
             curl -fsSL https://raw.githubusercontent.com/sdgamer8263-sketch/rdp2/main/install.sh | sudo bash 
+            echo -e "\n\e[1;33mTask Finished.\e[0m"
+            read -p "Press Enter to go back to RDP Menu..."
+            show_rdp_menu
             ;;
         [Cc]) 
             show_menu 
@@ -80,4 +93,3 @@ show_rdp_menu() {
 
 # Start the script
 show_menu
-
