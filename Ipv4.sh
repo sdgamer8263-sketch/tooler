@@ -8,9 +8,6 @@ sudo apt update -y
 echo "Installing wget..."
 sudo apt install wget -y
 
-# Playit ডাউনলোড করা হচ্ছে
-echo "Downloading playit..."
-wget https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
 
 # Execution permission দেওয়া হচ্ছে
 echo "Setting permissions..."
