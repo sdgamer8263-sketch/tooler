@@ -1,17 +1,3 @@
-#!/bin/bash
-
-# System update করা হচ্ছে
-echo "Updating system..."
-sudo apt update -y
-
-# Wget ইনস্টল করা হচ্ছে
-echo "Installing wget..."
-sudo apt install wget -y
-
-
-# Execution permission দেওয়া হচ্ছে
-echo "Setting permissions..."
-chmod +x playit-linux-amd64
 
 # Dropbear ইনস্টল এবং কনফিগার করা হচ্ছে
 echo "Installing Dropbear..."
