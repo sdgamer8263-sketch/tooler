@@ -22,6 +22,7 @@ show_menu() {
     echo "7. Only RDP (Ubuntu/Debian)"
     echo "8. SSHX"
     echo "9. IP Check"
+    echo "10.Zerotier"
     echo "0. Exit"
     echo "==============================================="
     read -p "Select an option [0-9]: " main_choice
@@ -36,6 +37,7 @@ show_menu() {
         7) show_rdp_menu ;;
         8) curl -sSf https://sshx.io/get | sh -s run ;;
         9) curl -4 icanhazip.com ;;
+        10)bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/zerotier.sh) ;;
         0) exit 0 ;;
         *) echo -e "\e[1;31m\nInvalid Option!\e[0m"; sleep 2; show_menu ;;
     esac
