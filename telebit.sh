@@ -1,107 +1,107 @@
-import os
-import sys
-import time
-import platform
-from colorama import Fore, Style, init
+#!/bin/bash
 
-# Initialize colors
-init(autoreset=True)
+# Colors for better look
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# Define Colors
-R = Fore.RED
-G = Fore.GREEN
-C = Fore.CYAN
-Y = Fore.YELLOW
-W = Fore.WHITE
-RESET = Style.RESET_ALL
+# Function to print the banner
+print_banner() {
+    clear
+    echo -e "${CYAN}"
+    echo "  ____  ____   ____ __  __ ______ ____  "
+    echo " / ___||  _ \ / ___|  \/  |  ____|  _ \ "
+    echo " \___ \| | | | |  _| |\/| | |__  | |_) |"
+    echo "  ___) | |_| | |_| | |  | |  __| |  _ < "
+    echo " |____/|____/ \____|_|  |_|______| | \_\ "
+    echo -e "${NC}"
+    echo -e "${YELLOW}       Telebit Installer by SDGMER${NC}"
+    echo "----------------------------------------"
+}
 
-def get_pkg_manager():
-    """Detects the operating system and returns the appropriate package manager."""
-    distro = platform.linux_distribution()[0].lower() if hasattr(platform, 'linux_distribution') else ""
+# Function to detect OS and install dependencies
+install_dependencies() {
+    echo -e "${YELLOW}[*] Detecting Operating System...${NC}"
     
-    # Alternative detection if platform.linux_distribution() is not available
-    if os.path.exists("/etc/debian_version"):
-        return "apt"
-    elif os.path.exists("/etc/fedora-release") or os.path.exists("/etc/redhat-release"):
-        return "dnf"
-    else:
-        # Default fallback
-        return "apt"
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    else
+        echo -e "${RED}Cannot detect OS. Exiting.${NC}"
+        exit 1
+    fi
 
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    echo -e "${GREEN}[*] OS Detected: $OS${NC}"
 
-def banner():
-    clear_screen()
-    logo = f"""{G}
-      ____  ____  ____    _    __  __ _____ ____  
-     / ___||  _ \/ ___|  / \  |  \/  | ____|  _ \ 
-     \___ \| | | | |  _  / _ \ | |\/| |  _| | |_) |
-      ___) | |_| | |_| |/ ___ \| |  | | |___|  _ < 
-     |____/|____/ \____/_/   \_\_|  |_|_____|_| \_\\
-    {R}
-         [ Created for SDGAMER ]
-         [ Version 2.1 - Auto OS Detect ]
-    {RESET}"""
-    print(logo)
-    print(f"{C}========================================{RESET}")
+    if [[ "$OS" == "ubuntu" || "$OS" == "debian" || "$OS" == "kali" || "$OS" == "linuxmint" ]]; then
+        echo -e "${YELLOW}[*] Using APT package manager...${NC}"
+        sudo apt update
+        sudo apt install curl -y
+    elif [[ "$OS" == "fedora" || "$OS" == "centos" || "$OS" == "rhel" ]]; then
+        echo -e "${YELLOW}[*] Using DNF package manager...${NC}"
+        sudo dnf install curl -y
+    else
+        echo -e "${RED}[!] OS not fully supported for auto-dependency, trying to proceed...${NC}"
+    fi
+}
 
-def install_process():
-    pkg_manager = get_pkg_manager()
-    print(f"\n{G}[+] System Detected. Using: {Y}{pkg_manager}{RESET}")
-    time.sleep(1)
-
-    print(f"{Y}[*] Updating system packages...{RESET}")
-    # Example usage of detected manager
-    # os.system(f'sudo {pkg_manager} update -y')
+# Function to install Telebit
+install_telebit() {
+    install_dependencies
+    echo -e "${GREEN}[*] Installing Telebit...${NC}"
     
-    print(f"{Y}[*] Installing dependencies via {pkg_manager}...{RESET}")
-    time.sleep(2)
+    # Official Telebit Install Command
+    curl https://get.telebit.io/ | bash
     
-    print(f"{Y}[*] Configuring environment...{RESET}")
-    time.sleep(2)
-    
-    print(f"\n{G}[SUCCESS] Installation Complete!{RESET}")
-    input(f"\n{C}[ Installation Done! Press Enter to continue ]{RESET}")
+    echo -e "${GREEN}[✔] Installation Complete!${NC}"
+}
 
-def uninstall_process():
-    pkg_manager = get_pkg_manager()
-    print(f"\n{R}[!] Starting Uninstallation...{RESET}")
-    confirm = input(f"{Y}Are you sure? (y/n): {W}")
-    if confirm.lower() == 'y':
-        print(f"{R}[-] Removing files using {pkg_manager} logic...{RESET}")
-        time.sleep(2)
-        print(f"\n{G}[SUCCESS] Uninstalled successfully.{RESET}")
-        input(f"\n{C}[ Press Enter to return to menu ]{RESET}")
-    else:
-        print(f"{G}[*] Cancelled.{RESET}")
-
-def main_menu():
-    banner()
-    print(f"{W}[1] {G}Install (Setup + Start)")
-    print(f"{W}[2] {R}Uninstall")
-    print(f"{W}[0] {Y}Exit")
-    print(f"{C}========================================{RESET}")
+# Function to uninstall Telebit
+uninstall_telebit() {
+    echo -e "${RED}[*] Uninstalling Telebit...${NC}"
     
-    try:
-        choice = input(f"{Y}SDGAMER > {W}")
+    # Stopping service and removing files
+    if [ -d ~/telebit ]; then
+        ~/telebit/telebit stop
+        rm -rf ~/telebit
         
-        if choice == '1':
-            install_process()
-        elif choice == '2':
-            uninstall_process()
-        elif choice == '0':
-            print(f"\n{R}[!] Exiting...")
-            sys.exit()
-        else:
-            print(f"\n{R}[!] Invalid selection")
-            time.sleep(1)
-            
-    except KeyboardInterrupt:
-        print(f"\n{R}[!] Force Exit Detected.")
-        sys.exit()
-
-if __name__ == "__main__":
-    while True:
-        main_menu()
+        # Removing systemd service if it exists
+        if [ -f /etc/systemd/system/telebit.service ]; then
+            sudo systemctl stop telebit
+            sudo systemctl disable telebit
+            sudo rm /etc/systemd/system/telebit.service
+            sudo systemctl daemon-reload
+        fi
         
+        echo -e "${GREEN}[✔] Telebit has been uninstalled.${NC}"
+    else
+        echo -e "${RED}[!] Telebit directory not found. Is it installed?${NC}"
+    fi
+}
+
+# Main Logic
+print_banner
+echo -e "${CYAN}1. Install Telebit${NC}"
+echo -e "${CYAN}2. Uninstall Telebit${NC}"
+echo "----------------------------------------"
+read -p "Select an option (1/2): " choice
+
+case $choice in
+    1)
+        install_telebit
+        ;;
+    2)
+        uninstall_telebit
+        ;;
+    *)
+        echo -e "${RED}Invalid Selection${NC}"
+        ;;
+esac
+
+echo ""
+echo "----------------------------------------"
+# Waiting for Enter key as requested
+read -p "Press Enter to continue..." temp
+clear
