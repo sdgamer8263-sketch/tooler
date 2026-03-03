@@ -24,6 +24,7 @@ show_menu() {
     echo "9. IP Check"
     echo "10.Zerotier"
     echo "11.Docker"
+    echo "12.Telebit"
     echo "0. Exit"
     echo "==============================================="
     read -p "Select an option [0-9]: " main_choice
@@ -40,6 +41,7 @@ show_menu() {
         9) curl -4 icanhazip.com ;;
         10)bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/zerotier.sh) ;;
         11)bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/Docker.sh) ;;
+        12)bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/telebit.sh) ;;
 
         0) exit 0 ;;
         *) echo -e "\e[1;31m\nInvalid Option!\e[0m"; sleep 2; show_menu ;;
