@@ -54,6 +54,7 @@ install_telebit() {
     
     # Official Telebit Install Command
     curl https://get.telebit.io/ | bash
+    telebit http 8080
     
     echo -e "${GREEN}[✔] Installation Complete!${NC}"
 }
