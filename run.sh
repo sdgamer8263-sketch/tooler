@@ -93,7 +93,7 @@ while true; do
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -en "${Y} ⚡ Select Option [0-13]: ${NC}"
-    read -r main_choice:
+    read -r main_choice
 
     case "$main_choice" in
         1|01) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/cloudflare.sh) ;;
@@ -120,3 +120,4 @@ while true; do
     echo -en "${W}Press ${Y}[ENTER]${W} to return to Main Menu...${NC}"
     read -r
 done
+
