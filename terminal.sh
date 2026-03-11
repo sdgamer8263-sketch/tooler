@@ -40,8 +40,8 @@ banner() {
 clear
 echo -e "${M}"
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║      🔥 TERMINAL SDGAMER  — MULTI TOOL.                       ║"
-echo "║        sshx • tmate • upterm • ttyd • more                    ║"
+echo "║      🔥 TERMINAL SDGAMER     — MULTI TOOL UI         ║"
+echo "║        sshx • tmate • upterm • ttyd • more           ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo -e "${N}"
 }
