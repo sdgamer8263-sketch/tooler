@@ -4,6 +4,12 @@
 #  VPS MASTER PANEL v5.0 | AUTO-DETECT DASHBOARD
 # ==================================================
 
+# --- ROOT CHECK ---
+if [[ $EUID -ne 0 ]]; then
+   echo -e "\e[31m❌ This script must be run as root. Please run with sudo.\e[0m"
+   exit 1
+fi
+
 # --- COLORS ---
 R="\e[31m"; G="\e[32m"; Y="\e[33m"; B="\e[34m"; C="\e[36m"; M="\e[35m"; W="\e[37m"; N="\e[0m"
 BOLD="\e[1m"
@@ -21,8 +27,13 @@ detect_system() {
         OS_NAME=$(uname -s)
     fi
     
-    # 3. Resources
-    CPU_LOAD=$(uptime | awk -F'load average:' '{ print $2 }' | cut -d, -f1 | xargs)
+    # 3. Resources (More robust CPU check)
+    if [ -f /proc/loadavg ]; then
+        CPU_LOAD=$(awk '{print $1}' /proc/loadavg)
+    else
+        CPU_LOAD=$(uptime | rev | cut -d: -f1 | rev | xargs)
+    fi
+    
     RAM_USED=$(free -h | awk '/^Mem:/ {print $3 "/" $2}')
     DISK_USED=$(df -h / | awk 'NR==2 {print $3 "/" $2 " (" $5 ")"}')
 }
@@ -41,8 +52,10 @@ check_status() {
 
 check_lxc() {
     if systemctl is-active --quiet lxd || systemctl is-active --quiet snap.lxd.daemon; then
-        local count=$(lxc list --format csv 2>/dev/null | wc -l)
+        local count=$(lxc list --format csv 2>/dev/null | wc -l | tr -d ' ')
         echo -e "${G}● ACTIVE ($count Containers)${N}"
+    elif command -v lxc &>/dev/null; then
+        echo -e "${R}● STOPPED${N}"
     else
         echo -e "${W}○ NOT INSTALLED${N}"
     fi
@@ -50,8 +63,10 @@ check_lxc() {
 
 check_docker() {
     if systemctl is-active --quiet docker; then
-        local count=$(docker ps -q 2>/dev/null | wc -l)
+        local count=$(docker ps -q 2>/dev/null | wc -l | tr -d ' ')
         echo -e "${G}● ACTIVE ($count Running)${N}"
+    elif command -v docker &>/dev/null; then
+        echo -e "${R}● STOPPED${N}"
     else
         echo -e "${W}○ NOT INSTALLED${N}"
     fi
@@ -99,7 +114,7 @@ docker_menu() {
         case $opt in
             1) docker ps -a; pause ;;
             2) curl -fsSL https://get.docker.com | sh; systemctl enable --now docker; pause ;;
-            3) docker run -d -p 9000:9000 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce; echo "Portainer on port 9000"; pause ;;
+            3) docker run -d -p 9000:9000 -p 8000:8000 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce:latest; echo "Portainer on port 9000"; pause ;;
             4) docker run -d -p 81:81 -p 80:80 -p 443:443 --name npm --restart=always jc21/nginx-proxy-manager:latest; echo "NPM on port 81"; pause ;;
             0) return ;;
         esac
@@ -131,18 +146,23 @@ lxc_menu() {
                 ;;
             3)
                 read -p "Name: " n
-                echo -e "${Y}Creating & Installing Desktop...${N}"
+                echo -e "${Y}Creating Container & Waiting for Network...${N}"
                 lxc launch ubuntu:22.04 "$n"
-                lxc exec "$n" -- apt update
-                lxc exec "$n" -- apt install -y xfce4 xfce4-goodies xrdp dbus-x11
+                sleep 8 # Wait for IPv4 address to be assigned
+                
+                echo -e "${Y}Installing Desktop (This will take a few minutes)...${N}"
+                lxc exec "$n" -- env DEBIAN_FRONTEND=noninteractive apt update
+                lxc exec "$n" -- env DEBIAN_FRONTEND=noninteractive apt install -y xfce4 xfce4-goodies xrdp dbus-x11
+                
                 lxc exec "$n" -- adduser xrdp ssl-cert
                 lxc exec "$n" -- sh -c "echo 'xfce4-session' > /root/.xsession"
                 lxc exec "$n" -- systemctl restart xrdp
                 lxc exec "$n" -- sh -c "echo 'ubuntu:root' | chpasswd"
-                echo -e "${G}Done! User: ubuntu | Pass: root${N}"; pause
+                
+                echo -e "${G}Done! Connect via RDP. User: ubuntu | Pass: root${N}"; pause
                 ;;
             4) read -p "Name: " n; lxc delete "$n" --force; pause ;;
-            5) apt update && apt install -y snapd; snap install lxd; lxd init --auto; pause ;;
+            5) apt update && env DEBIAN_FRONTEND=noninteractive apt install -y snapd; snap install lxd; lxd init --auto; pause ;;
             0) return ;;
         esac
     done
@@ -164,10 +184,33 @@ rdp_menu() {
         echo
         read -p "Select: " opt
         case $opt in
-            1) apt update && apt install -y xfce4 xfce4-goodies xrdp; systemctl enable xrdp; echo "xfce4-session" > /root/.xsession; pause ;;
-            2) wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb; apt install -y /tmp/chrome.deb; sed -i 's|Exec=/usr/bin/google-chrome-stable|Exec=/usr/bin/google-chrome-stable --no-sandbox|g' /usr/share/applications/google-chrome.desktop; pause ;;
-            3) read -p "User: " u; read -s -p "Pass: " p; useradd -m -s /bin/bash "$u"; echo "$u:$p" | chpasswd; echo "xfce4-session" > /home/$u/.xsession; echo "Done."; pause ;;
-            4) systemctl restart xrdp; echo "Restarted."; pause ;;
+            1) 
+                env DEBIAN_FRONTEND=noninteractive apt update
+                env DEBIAN_FRONTEND=noninteractive apt install -y xfce4 xfce4-goodies xrdp
+                systemctl enable xrdp
+                echo "xfce4-session" > /root/.xsession
+                echo -e "${G}Installation Complete.${N}"; pause 
+                ;;
+            2) 
+                wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+                env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/chrome.deb
+                sed -i 's|Exec=/usr/bin/google-chrome-stable|Exec=/usr/bin/google-chrome-stable --no-sandbox|g' /usr/share/applications/google-chrome.desktop
+                rm -f /tmp/chrome.deb
+                echo -e "${G}Chrome Installed.${N}"; pause 
+                ;;
+            3) 
+                read -p "User: " u
+                read -s -p "Pass: " p; echo
+                useradd -m -s /bin/bash "$u"
+                echo "$u:$p" | chpasswd
+                echo "xfce4-session" > /home/$u/.xsession
+                chown "$u:$u" /home/$u/.xsession # Fix permissions issue
+                echo -e "${G}Done. User '$u' created.${N}"; pause 
+                ;;
+            4) 
+                systemctl restart xrdp
+                echo "Restarted."; pause 
+                ;;
             0) return ;;
         esac
     done
@@ -189,7 +232,8 @@ while true; do
         1) docker_menu ;;
         2) lxc_menu ;;
         3) rdp_menu ;;
-        0) exit 0 ;;
+        0) clear; exit 0 ;;
         *) ;;
     esac
 done
+
