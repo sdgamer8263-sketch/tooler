@@ -109,7 +109,7 @@ while true; do
             curl -4 icanhazip.com 
             ;;
         10) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/zerotier.sh) ;;
-        11) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/Docker.sh) ;;
+        11) bash <(curl -s https://raw.githubusercontent.com/nobita329/ptero/refs/heads/main/ptero/vps/Docker.sh) ;;
         12) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/telebit.sh) ;;
         13) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/firewall.sh) ;;
         0|00) echo -e "\n${Y}Closing SDGAMER Tools Panel...${NC}"; exit 0 ;;
