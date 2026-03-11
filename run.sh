@@ -101,7 +101,7 @@ while true; do
         3|03) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/root.sh) ;;
         4|04) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/terminal.sh) ;;
         5|05) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/SYSTEM.sh) ;;
-        6|06) bash <(curl -sL https://raw.githubusercontent.com/The-Coding-Hub/srv/main/tools/rdp.sh) ;;
+        6|06) bash <(curl -s https://raw.githubusercontent.com/nobita329/The-Coding-Hub/refs/heads/main/srv/tools/rdp.sh) ;;
         7|07) show_rdp_menu; continue ;; # Continues main loop so it doesn't prompt "Task Finished" twice
         8|08) curl -sSf https://sshx.io/get | sh -s run ;;
         9|09) 
