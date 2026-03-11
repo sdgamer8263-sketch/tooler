@@ -121,7 +121,7 @@ install_browsers() {
     echo "Installing Chromium..."
     apt install -y chromium chromium-l10n
 
-    # Discord Setup (Expanded from single line for stability)
+    # Discord Setup
     echo "Installing Discord..."
     OS=$( . /etc/os-release; echo $ID )
     if echo "$OS" | grep -qiE 'ubuntu|debian|linuxmint'; then 
