@@ -34,13 +34,13 @@ show_header() {
 # --- LOGIC FUNCTIONS ---
 detect_firewall() {
     if systemctl is-active --quiet ufw 2>/dev/null; then 
-        echo "UFW (Active)"
+        echo -e "${GREEN}UFW (Active)${NC}"
     elif systemctl is-active --quiet firewalld 2>/dev/null; then 
-        echo "Firewalld (Active)"
+        echo -e "${GREEN}Firewalld (Active)${NC}"
     elif iptables -L -n >/dev/null 2>&1; then
-        echo "IPTables (Active)"
+        echo -e "${GOLD}IPTables (Active)${NC}"
     else
-        echo "No Firewall Detected"
+        echo -e "${RED}No Firewall Detected${NC}"
     fi
 }
 
@@ -64,7 +64,7 @@ save_rules_persistent() {
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${RED}This script must be run as root!${NC}"
+        echo -e "${RED}This script must be run as root! Please use sudo.${NC}"
         exit 1
     fi
 }
@@ -100,8 +100,8 @@ ufw_menu() {
         echo -e "  ${PURPLE}[4]${NC} Close Port            ${PURPLE}[8]${NC} Reset to Defaults"
         echo -e "  ${PURPLE}[0]${NC} Back to Main"
         echo -ne "\n  ${CYAN}λ${NC} ${WHITE}UFW Command:${NC} "
-        read opt
-        case $opt in
+        read -r opt
+        case "$opt" in
             1) 
                 apt install -y ufw >/dev/null 2>&1
                 ufw --force disable
@@ -122,7 +122,7 @@ ufw_menu() {
             3) 
                 read -p "Enter port number: " p
                 read -p "Protocol (tcp/udp/both): " proto
-                case $proto in
+                case "$proto" in
                     tcp) ufw allow $p/tcp ;;
                     udp) ufw allow $p/udp ;;
                     both) ufw allow $p ;;
@@ -145,6 +145,7 @@ ufw_menu() {
                 sleep 2
                 ;;
             0) break ;;
+            *) echo -e "${RED}Invalid Selection!${NC}"; sleep 1 ;;
         esac
     done
 }
@@ -156,8 +157,8 @@ iptables_menu() {
         echo -e "${PURPLE}│${NC}  ${RED}🔥 IPTABLES DEEP SECURITY${NC}                        ${PURPLE}│${NC}"
         echo -e "${PURPLE}├──────────────────────────────────────────────────────────┤${NC}"
         echo -e "  ${GOLD}ACTIVE RULES SUMMARY${NC}"
-        echo -e "  ${GRAY}INPUT Chain Policy:${NC} $(iptables -L INPUT -n | head -1 | awk '{print $4}')"
-        echo -e "  ${GRAY}Total Rules:${NC} $(iptables -L INPUT -n | grep -c "ACCEPT\|DROP\|REJECT")"
+        echo -e "  ${GRAY}INPUT Chain Policy:${NC} $(iptables -L INPUT -n 2>/dev/null | head -1 | awk '{print $4}')"
+        echo -e "  ${GRAY}Total Rules:${NC} $(iptables -L INPUT -n 2>/dev/null | grep -c "ACCEPT\|DROP\|REJECT")"
         echo -e "${PURPLE}├──────────────────────────────────────────────────────────┤${NC}"
         echo -e "  ${GOLD}SECURITY MODULES${NC}"
         echo -e "  ${PURPLE}[1]${NC} ${WHITE}Recommended Secure Setup${NC}     ${PURPLE}[8]${NC} ${WHITE}Auto-Ban Suspicious${NC}"
@@ -169,10 +170,9 @@ iptables_menu() {
         echo -e "  ${PURPLE}[7]${NC} ${WHITE}ICMP/Ping Protection${NC}          ${PURPLE}[14]${NC} ${WHITE}Install GeoIP${NC}"
         echo -e "  ${PURPLE}[0]${NC} Back"
         echo -ne "\n  ${CYAN}λ${NC} ${WHITE}IPT-Command:${NC} "
-        read opt
-        case $opt in
+        read -r opt
+        case "$opt" in
             1) 
-                # Basic secure setup
                 iptables -P INPUT DROP
                 iptables -P FORWARD DROP
                 iptables -P OUTPUT ACCEPT
@@ -267,6 +267,7 @@ iptables_menu() {
                 sleep 2
                 ;;
             0) break ;;
+            *) echo -e "${RED}Invalid Selection!${NC}"; sleep 1 ;;
         esac
     done
 }
@@ -288,8 +289,8 @@ firewalld_menu() {
         echo -e "  ${PURPLE}[7]${NC} Switch to IPTables Mode"
         echo -e "  ${PURPLE}[0]${NC} Back"
         echo -ne "\n  ${CYAN}λ${NC} ${WHITE}Firewalld Command:${NC} "
-        read opt
-        case $opt in
+        read -r opt
+        case "$opt" in
             1) 
                 systemctl enable --now firewalld
                 echo -e "${GREEN}✓ Firewalld started${NC}"
@@ -335,6 +336,7 @@ firewalld_menu() {
                 sleep 2
                 ;;
             0) break ;;
+            *) echo -e "${RED}Invalid Selection!${NC}"; sleep 1 ;;
         esac
     done
 }
@@ -346,7 +348,7 @@ http_menu() {
         echo -e "${PURPLE}│${NC}  ${CYAN}🌐 HTTP FILTER & RATE LIMITS${NC}                     ${PURPLE}│${NC}"
         echo -e "${PURPLE}├──────────────────────────────────────────────────────────┤${NC}"
         echo -e "  ${GOLD}CURRENT HTTP RULES${NC}"
-        iptables -L INPUT -n -v | grep -E ":80|:443" | head -n 5 | sed 's/^/  /'
+        iptables -L INPUT -n -v 2>/dev/null | grep -E ":80|:443" | head -n 5 | sed 's/^/  /'
         echo -e "${PURPLE}├──────────────────────────────────────────────────────────┤${NC}"
         echo -e "  ${PURPLE}[1]${NC} Enable Rate Limiting (HTTP)"
         echo -e "  ${PURPLE}[2]${NC} Enable Rate Limiting (HTTPS)"
@@ -358,8 +360,8 @@ http_menu() {
         echo -e "  ${PURPLE}[8]${NC} Show HTTP Traffic Stats"
         echo -e "  ${PURPLE}[0]${NC} Back"
         echo -ne "\n  ${CYAN}λ${NC} ${WHITE}Filter Choice:${NC} "
-        read opt
-        case $opt in
+        read -r opt
+        case "$opt" in
             1) 
                 iptables -A INPUT -p tcp --dport 80 -m limit --limit 30/minute --limit-burst 50 -j ACCEPT
                 echo -e "${GREEN}✓ HTTP rate limiting enabled${NC}"
@@ -405,6 +407,7 @@ http_menu() {
                 read -p "Press Enter to continue"
                 ;;
             0) break ;;
+            *) echo -e "${RED}Invalid Selection!${NC}"; sleep 1 ;;
         esac
     done
 }
@@ -432,8 +435,8 @@ fail2ban_menu() {
         echo -e "  ${PURPLE}[8]${NC} View Fail2ban Log"
         echo -e "  ${PURPLE}[0]${NC} Back"
         echo -ne "\n  ${CYAN}λ${NC} ${WHITE}Fail2ban Choice:${NC} "
-        read opt
-        case $opt in
+        read -r opt
+        case "$opt" in
             1) 
                 apt-get update
                 apt-get install -y fail2ban
@@ -459,15 +462,4 @@ enabled = true
 logpath = /var/log/nginx/error.log
 EOF
                 systemctl enable --now fail2ban
-                echo -e "${GREEN}✓ Fail2ban installed and configured${NC}"
-                sleep 2
-                ;;
-            2) 
-                systemctl enable --now fail2ban
-                echo -e "${GREEN}✓ Fail2ban started${NC}"
-                sleep 2
-                ;;
-            3) 
-                systemctl disable --now fail2ban
-                echo -e "${GREEN}✓ Fail2ban stopped${NC}"
-       
+                echo -e "${GREEN}✓ Fail2b
