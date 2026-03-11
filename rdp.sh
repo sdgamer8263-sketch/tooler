@@ -1,68 +1,70 @@
 #!/bin/bash
 
+# ==========================================
+# SDGAMER RDP + noVNC CONTROL PANEL
+# STYLE: 3D SHADOW BLOCKY
+# ==========================================
+
 # Colors
-R="\e[31m"; G="\e[32m"; Y="\e[33m"
-B="\e[34m"; M="\e[35m"; C="\e[36m"
-W="\e[97m"; N="\e[0m"
+R='\033[1;31m'
+G='\033[1;32m'
+Y='\033[1;33m'
+B='\033[1;34m'
+P='\033[1;35m'
+C='\033[1;36m'
+W='\033[1;37m'
+NC='\033[0m'
 
 # Check root
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${R}Please run as root: sudo bash $0${N}"
+    echo -e "${R}Please run as root: sudo bash $0${NC}"
     exit 1
 fi
 
-clear_ui() { clear; }
-
-header() {
-    clear_ui
-    echo -e "${M}╔════════════════════════════════════════════╗${N}"
-    echo -e "${M}║${W}     🚀 RDP + noVNC CONTROL PANEL v2.0     ${M}║${N}"
-    echo -e "${M}╠════════════════════════════════════════════╣${N}"
-    echo -e "${M}║${C}  XFCE • xRDP • TigerVNC • Browser Desktop ${M}║${N}"
-    echo -e "${M}╚════════════════════════════════════════════╝${N}"
-    echo
+banner() {
+    clear
+    echo -e "${C} ▬▬▬ ${W}HOST: ${C}SDGAMER  ${W}│ ${C}RDP & noVNC PANEL ${C}▬▬▬${NC}"
+    echo -e "${B}  ██████  ██████   ██████   █████  ███    ███ ███████ ██████  ${NC}"
+    echo -e "${P} ██      ██   ██ ██       ██   ██ ████  ████ ██      ██   ██ ${NC}"
+    echo -e "${C}  █████  ██   ██ ██   ███ ███████ ██ ████ ██ █████   ██████  ${NC}"
+    echo -e "${G}      ██ ██   ██ ██    ██ ██   ██ ██  ██  ██ ██      ██   ██ ${NC}"
+    echo -e "${Y} ██████  ██████   ██████  ██   ██ ██      ██ ███████ ██   ██ ${NC}"
+    echo -e "${W} ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo ""
 }
 
 show_info() {
     IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
-    echo -e "${C}════════════════════════════════════════════${N}"
-    echo -e "${Y}🔗 Connection Info:${N}"
-    echo -e "${G}RDP   :${W} $IP:3389${N}"
-    echo -e "${G}noVNC :${W} http://$IP:6080/vnc.html${N}"
-    echo -e "${G}VNC   :${W} $IP:5901${N}"
-    echo -e "${C}════════════════════════════════════════════${N}"
-    echo
+    echo -e "${C}════════════════════════════════════════════${NC}"
+    echo -e "${Y}🔗 Connection Info:${NC}"
+    echo -e "${G}RDP   :${W} $IP:3389${NC}"
+    echo -e "${G}noVNC :${W} http://$IP:6080/vnc.html${NC}"
+    echo -e "${G}VNC   :${W} $IP:5901${NC}"
+    echo -e "${C}════════════════════════════════════════════${NC}"
+    echo ""
 }
 
+# --- WORKING COMMANDS ---
+
 install_all() {
-    echo -e "${Y}📦 Installing Desktop + RDP + noVNC...${N}"
+    echo -e "${Y}📦 Installing Desktop (XFCE) + RDP + noVNC...${NC}"
     
-    # Update system
-    apt update && apt upgrade -y
-    
-    # Install desktop, RDP, and VNC packages
-    echo "📡 Installing Desktop & VNC tools..."
-    apt install -y xfce4 xfce4-goodies xfce4-terminal \
-        xrdp tigervnc-standalone-server tigervnc-common \
-        novnc websockify firefox-esr ssl-cert
+    # Update and Install
+    apt update -y
+    apt install -y xfce4 xfce4-goodies xfce4-terminal xrdp tigervnc-standalone-server tigervnc-common novnc websockify ssl-cert
     
     # Configure xRDP
     systemctl enable xrdp
-    systemctl start xrdp
     adduser xrdp ssl-cert
-    
-    # Set XFCE as default session
-    echo "🧠 Setting default session..."
     echo "xfce4-session" > ~/.xsession
     echo "xfce4-session" > /etc/skel/.xsession
     chmod +x ~/.xsession
     
-    # Configure VNC
+    # VNC Setup
     mkdir -p ~/.vnc
-    echo "root" | vncpasswd -f > ~/.vnc/passwd
-    chmod 600 ~/.vnc/passwd
+    echo -e "${C}Please set a password for VNC/noVNC:${NC}"
+    vncpasswd
     
-    # Create VNC config
     cat > ~/.vnc/config <<EOF
 geometry=1280x720
 depth=24
@@ -70,10 +72,11 @@ localhost
 alwaysshared
 EOF
     
-    # Start VNC server (only after config is done)
+    # Start VNC
+    vncserver -kill :1 2>/dev/null || true
     vncserver -localhost no :1
     
-    # Create noVNC service
+    # noVNC Service
     cat > /etc/systemd/system/novnc.service <<EOF
 [Unit]
 Description=noVNC Server
@@ -90,215 +93,109 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
     
-    # Reload and start noVNC
     systemctl daemon-reload
     systemctl enable novnc
     systemctl start novnc
+    systemctl restart xrdp
     
-    # Configure firewall
+    # Firewall
     ufw allow 3389/tcp >/dev/null 2>&1 || true
     ufw allow 6080/tcp >/dev/null 2>&1 || true
     ufw allow 5901/tcp >/dev/null 2>&1 || true
-    ufw reload >/dev/null 2>&1 || true
     
-    # Install additional browsers
-    install_browsers
-    
-    echo -e "${G}✅ Installation Complete!${N}"
-    show_info
-    read -p "Press Enter to continue..."
-}
-
-install_browsers() {
-    echo -e "${Y}🌐 Installing Web Browsers & Apps...${N}"
-    
-    # Chrome
-    echo "Installing Google Chrome..."
-    wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    apt install -y /tmp/chrome.deb 2>/dev/null || echo -e "${R}Chrome installation skipped${N}"
-
-    # Chromium
-    echo "Installing Chromium..."
-    apt install -y chromium chromium-l10n
-
-    # Discord Setup
-    echo "Installing Discord..."
-    OS=$( . /etc/os-release; echo $ID )
-    if echo "$OS" | grep -qiE 'ubuntu|debian|linuxmint'; then 
-        sudo apt update
-        sudo apt install -y xfce4 xfce4-goodies wget libgbm1 libasound2t64 pulseaudio pavucontrol xdg-utils
-        rm -f /tmp/discord*.deb
-        wget -q -O /tmp/discord.deb https://discord.com/api/download?platform=linux\&format=deb
-        wget -q -O /tmp/discord-canary.deb https://discord.com/api/download/canary?platform=linux\&format=deb
-        sudo dpkg -i /tmp/discord.deb /tmp/discord-canary.deb || sudo apt -f install -y
-    elif echo "$OS" | grep -qiE 'ol|oracle|rhel|rocky|almalinux|centos'; then 
-        sudo dnf install -y epel-release
-        sudo dnf groupinstall -y "Xfce"
-        sudo dnf install -y wget libgbm pulseaudio pavucontrol xdg-utils
-        rm -f /tmp/discord*.rpm
-        wget -q -O /tmp/discord.rpm https://discord.com/api/download?platform=linux\&format=rpm
-        wget -q -O /tmp/discord-canary.rpm https://discord.com/api/download/canary?platform=linux\&format=rpm
-        sudo dnf install -y /tmp/discord.rpm /tmp/discord-canary.rpm
-    fi 
-    
-    echo "xfce4-session" > ~/.xsession
-    sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord --no-sandbox|' /usr/share/applications/discord.desktop 2>/dev/null || true
-    sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord-canary --no-sandbox|' /usr/share/applications/discord-canary.desktop 2>/dev/null || true
-    sudo systemctl restart xrdp
-
-    # Brave (optional)
-    read -p "Install Brave Browser? (y/n): " install_brave
-    if [[ $install_brave =~ ^[Yy]$ ]]; then
-        apt install -y curl
-        curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
-            https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] \
-            https://brave-browser-apt-release.s3.brave.com/ stable main" \
-            > /etc/apt/sources.list.d/brave-browser-release.list
-        apt update
-        apt install -y brave-browser
-    fi
-
-    # Optimize Desktop Shortcuts
-    sed -i 's|^Exec=.*google-chrome-stable.*|Exec=/usr/bin/google-chrome-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/google-chrome.desktop 2>/dev/null || true
-    sed -i 's|^Exec=.*brave-browser.*|Exec=/usr/bin/brave-browser-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/brave-browser.desktop 2>/dev/null || true
-    sed -i 's|^Exec=.*chromium.*|Exec=/usr/bin/chromium --no-sandbox --disable-dev-shm-usage|g' ~/Desktop/chromium*.desktop 2>/dev/null || true
-    
-    # Desktop Icon Setup
-    mkdir -p ~/Desktop
-    for f in discord.desktop discord-canary.desktop microsoft-edge.desktop microsoft-edge-stable.desktop brave-browser.desktop chromium.desktop chromium-browser.desktop firefox.desktop google-chrome.desktop google-chrome-stable.desktop; do 
-        [ -f /usr/share/applications/$f ] && cp /usr/share/applications/$f ~/Desktop/
-    done 
-    
-    chmod +x ~/Desktop/*.desktop 2>/dev/null || true
-    for d in ~/Desktop/*.desktop; do 
-        gio set "$d" metadata::trusted true 2>/dev/null || true
-    done 
-    xfdesktop --reload 2>/dev/null || true
-
-    # Snap Store Setup
-    sudo apt install -y snapd || true
-    sudo snap install snap-store 2>/dev/null || true
-    mkdir -p ~/Desktop
-    cp /var/lib/snapd/desktop/applications/snap-store_snap-store.desktop ~/Desktop/ 2>/dev/null || true
-    chmod +x ~/Desktop/snap-store_snap-store.desktop 2>/dev/null || true
-    gio set ~/Desktop/snap-store_snap-store.desktop metadata::trusted true 2>/dev/null || true
-    xfdesktop --reload 2>/dev/null || true
-    pkill snap-store || true 
-    snap-store --reset >/dev/null 2>&1 || true 
-    rm -rf ~/snap/snap-store/common/* ~/.cache/snap-store 
-    snap-store &>/dev/null &
-
-    echo -e "${G}✅ Browsers and Apps installed${N}"
+    echo -e "${G}✅ RDP & noVNC Installed Successfully!${NC}"
 }
 
 start_services() {
-    echo -e "${Y}▶ Starting Services...${N}"
+    echo -e "${Y}▶ Starting Services (Useful after VPS restart)...${NC}"
     systemctl start xrdp
-    vncserver -localhost no :1 2>/dev/null || echo -e "${C}VNC already running.${N}"
+    vncserver -localhost no :1 2>/dev/null || echo -e "${C}VNC is already running.${NC}"
     systemctl start novnc
-    echo -e "${G}✅ Services Started${N}"
-    sleep 1
+    echo -e "${G}✅ Services Started!${NC}"
 }
 
 stop_services() {
-    echo -e "${Y}⏹ Stopping Services...${N}"
-    systemctl stop xrdp novnc
+    echo -e "${Y}⏹ Stopping Services...${NC}"
+    systemctl stop xrdp
+    systemctl stop novnc
     vncserver -kill :1 2>/dev/null || true
-    echo -e "${G}✅ Services Stopped${N}"
-    sleep 1
-}
-
-restart_services() {
-    stop_services
-    start_services
+    echo -e "${G}✅ Services Stopped!${NC}"
 }
 
 status_services() {
-    echo -e "${C}════════════════════════════════════════════${N}"
-    echo -e "${Y}🔍 Service Status:${N}"
-    echo -e "${C}════════════════════════════════════════════${N}"
-    systemctl is-active --quiet xrdp && echo -e "xRDP    : ${G}ACTIVE${N}" || echo -e "xRDP    : ${R}INACTIVE${N}"
-    systemctl is-active --quiet novnc && echo -e "noVNC   : ${G}ACTIVE${N}" || echo -e "noVNC   : ${R}INACTIVE${N}"
-    netstat -tulpn 2>/dev/null | grep -qE ":3389|:6080|:5901" && echo -e "Ports   : ${G}LISTENING${N}" || echo -e "Ports   : ${R}NOT LISTENING${N}"
-    echo -e "${C}════════════════════════════════════════════${N}"
-    read -p "Press Enter to continue..."
+    systemctl is-active --quiet xrdp && echo -e "xRDP    : ${G}ACTIVE${NC}" || echo -e "xRDP    : ${R}INACTIVE${NC}"
+    systemctl is-active --quiet novnc && echo -e "noVNC   : ${G}ACTIVE${NC}" || echo -e "noVNC   : ${R}INACTIVE${NC}"
+    netstat -tulpn 2>/dev/null | grep -qE ":3389|:6080|:5901" && echo -e "Ports   : ${G}LISTENING${NC}" || echo -e "Ports   : ${R}NOT LISTENING${NC}"
 }
 
-change_vnc_password() {
-    echo -e "${Y}🔐 Change VNC Password${N}"
-    vncpasswd
-    echo -e "${G}✅ Password changed. Restarting VNC to apply...${N}"
-    vncserver -kill :1 2>/dev/null || true
-    vncserver -localhost no :1
-    read -p "Press Enter..."
-}
-
-uninstall_all() {
-    echo -e "${R}⚠️  WARNING: This will remove ALL RDP/VNC components${N}"
-    read -p "Are you sure? (y/n): " confirm
-    if [[ ! $confirm =~ ^[Yy]$ ]]; then
-        echo "Aborted."
-        return
+add_user() {
+    echo -e "${Y}👤 Create a new user for RDP access${NC}"
+    read -p "Enter new username: " new_user
+    if id "$new_user" &>/dev/null; then
+        echo -e "${R}User $new_user already exists!${NC}"
+    else
+        adduser "$new_user"
+        usermod -aG sudo "$new_user"
+        echo "xfce4-session" > /home/$new_user/.xsession
+        chown $new_user:$new_user /home/$new_user/.xsession
+        echo -e "${G}✅ User $new_user created successfully! You can now login to RDP with this user.${NC}"
     fi
-    
-    echo -e "${R}🧨 Stopping services...${N}"
-    systemctl stop xrdp 2>/dev/null || true
-    systemctl stop novnc 2>/dev/null || true
-    vncserver -kill :1 2>/dev/null || true
-    
-    echo -e "${R}🗑️  Purging packages...${N}"
-    apt purge -y xfce4* xrdp tigervnc-standalone-server tigervnc-common novnc websockify \
-        firefox-esr google-chrome-stable chromium chromium-browser brave-browser
-    
-    echo -e "${R}🧹 Removing configs and files...${N}"
-    rm -rf ~/.vnc /etc/xrdp /etc/systemd/system/novnc.service
-    rm -f ~/.xsession /etc/skel/.xsession
-    rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/brave-browser-release.list
-    rm -f /usr/share/keyrings/google-chrome.gpg /usr/share/keyrings/brave-browser-archive-keyring.gpg
-    rm -f ~/Desktop/*.desktop
-    
-    echo -e "${R}🧹 Autoremove & cleanup...${N}"
-    systemctl daemon-reload
-    apt autoremove -y
-    apt autoclean -y
-    
-    echo -e "${G}✅ Uninstall complete! System cleaned.${N}"
-    read -p "Press Enter to return to main menu..."
 }
 
-# Main menu
+install_browsers() {
+    echo -e "${Y}🌐 Installing Browsers...${NC}"
+    apt install -y firefox-esr chromium
+    wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    apt install -y /tmp/chrome.deb 2>/dev/null
+    echo -e "${G}✅ Browsers Installed!${NC}"
+}
+
+# --- MAIN MENU LOOP ---
 while true; do
-    header
+    banner
     show_info
     
-    echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
-    echo -e "${G}1) ${W}Install${N}"
-    echo -e "${G}2) ${W}Start ${N}"
-    echo -e "${G}3) ${W}Stop ${N}"
-    echo -e "${G}4) ${W}Restart ${N}"
-    echo -e "${G}5) ${W}Status${N}"
-    echo -e "${G}6) ${W}VNC Password${N}"
-    echo -e "${G}7) ${W}Browsers ${N}"
-    echo -e "${G}8) ${W}User ${N}"
-    echo -e "${R}9) ${W}Uninstall ${N}"
-    echo -e "${R}0) ${W}Exit${N}"
-    echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
+    echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "  ${G}[1]${W} Install RDP + noVNC (Combined)"
+    echo -e "  ${G}[2]${W} Start Services (After VPS Reboot)"
+    echo -e "  ${G}[3]${W} Stop Services"
+    echo -e "  ${G}[4]${W} Restart Services"
+    echo -e "  ${G}[5]${W} Check Status"
+    echo -e "  ${G}[6]${W} Change VNC Password"
+    echo -e "  ${G}[7]${W} Install Browsers"
+    echo -e "  ${G}[8]${W} Add New RDP User"
+    echo -e "  ${R}[9]${W} Uninstall Everything"
+    echo -e "  ${R}[0]${W} Exit"
+    echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -en "${Y} ⚡ Select Option: ${NC}"
+    read -r opt
     
-    read -p "Select option: " opt
-    
-    case $opt in
+    echo ""
+    case "$opt" in
         1) install_all ;;
         2) start_services ;;
         3) stop_services ;;
-        4) restart_services ;;
+        4) stop_services; start_services ;;
         5) status_services ;;
-        6) change_vnc_password ;;
+        6) vncpasswd; vncserver -kill :1 2>/dev/null; vncserver -localhost no :1 ;;
         7) install_browsers ;;
-        8) bash <(curl -sL https://raw.githubusercontent.com/nobita329/The-Coding-Hub/refs/heads/main/srv/tools/xrdp.sh) ;;
-        9) uninstall_all ;;
-        0) echo -e "${G}Goodbye!${N}"; exit 0 ;;
-        *) echo -e "${R}Invalid option${N}"; sleep 1 ;;
+        8) add_user ;;
+        9) 
+            echo -e "${R}Removing RDP and noVNC...${NC}"
+            stop_services
+            apt purge -y xfce4* xrdp tigervnc* novnc websockify
+            rm -rf ~/.vnc /etc/xrdp /etc/systemd/system/novnc.service ~/.xsession
+            systemctl daemon-reload
+            apt autoremove -y
+            echo -e "${G}✅ Uninstalled!${NC}"
+            ;;
+        0) echo -e "${G}Goodbye!${NC}"; exit 0 ;;
+        *) echo -e "${R}Invalid option!${NC}" ;;
     esac
+    
+    echo ""
+    echo -en "${W}Press ${Y}[ENTER]${W} to return to main menu...${NC}"
+    read -r
 done
 
