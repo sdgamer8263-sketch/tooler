@@ -39,29 +39,12 @@ install_all() {
     
     # Update system
     apt update && apt upgrade -y
-    apt update && apt upgrade -y
-    apt install xrdp -y
-    systemctl enable xrdp
-    systemctl start xrdp
-    adduser xrdp ssl-cert
-    echo "startxfce4" > ~/.xsession
-    sudo chown $(whoami):$(whoami) ~/.xsession
-    echo "🧠 Setting default session..."
-    echo xfce4-session > /etc/skel/.xsession
-    echo xfce4-session > ~/.xsession
-
-    echo "📡 Installing VNC & noVNC..."
-    apt install tigervnc-standalone-server tigervnc-common novnc websockify -y
-    apt install xfce4 xfce4-goodies xrdp tigervnc-standalone-server tigervnc-common novnc websockify -y
-    systemctl enable xrdp && systemctl start xrdp
-    adduser xrdp ssl-cert
-    echo xfce4-session > ~/.xsession
-    echo xfce4-session > /etc/skel/.xsession
-    vncserver -localhost no :1
-    # Install desktop and VNC
+    
+    # Install desktop, RDP, and VNC packages
+    echo "📡 Installing Desktop & VNC tools..."
     apt install -y xfce4 xfce4-goodies xfce4-terminal \
         xrdp tigervnc-standalone-server tigervnc-common \
-        novnc websockify firefox-esr
+        novnc websockify firefox-esr ssl-cert
     
     # Configure xRDP
     systemctl enable xrdp
@@ -69,6 +52,7 @@ install_all() {
     adduser xrdp ssl-cert
     
     # Set XFCE as default session
+    echo "🧠 Setting default session..."
     echo "xfce4-session" > ~/.xsession
     echo "xfce4-session" > /etc/skel/.xsession
     chmod +x ~/.xsession
@@ -86,7 +70,7 @@ localhost
 alwaysshared
 EOF
     
-    # Start VNC server
+    # Start VNC server (only after config is done)
     vncserver -localhost no :1
     
     # Create noVNC service
@@ -106,18 +90,16 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
     
+    # Reload and start noVNC
     systemctl daemon-reload
     systemctl enable novnc
     systemctl start novnc
-    systemctl daemon-reexec
-    systemctl daemon-reload
-    systemctl enable novnc
-    systemctl start novnc
+    
     # Configure firewall
-    ufw allow 3389/tcp
-    ufw allow 6080/tcp
-    ufw allow 5901/tcp
-    ufw reload 2>/dev/null || true
+    ufw allow 3389/tcp >/dev/null 2>&1 || true
+    ufw allow 6080/tcp >/dev/null 2>&1 || true
+    ufw allow 5901/tcp >/dev/null 2>&1 || true
+    ufw reload >/dev/null 2>&1 || true
     
     # Install additional browsers
     install_browsers
@@ -128,16 +110,41 @@ EOF
 }
 
 install_browsers() {
-    echo -e "${Y}🌐 Installing Web Browsers...${N}"
+    echo -e "${Y}🌐 Installing Web Browsers & Apps...${N}"
     
     # Chrome
     echo "Installing Google Chrome..."
     wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    apt install -y /tmp/chrome.deb 2>/dev/null || echo "Chrome installation skipped"
+    apt install -y /tmp/chrome.deb 2>/dev/null || echo -e "${R}Chrome installation skipped${N}"
 
     # Chromium
+    echo "Installing Chromium..."
     apt install -y chromium chromium-l10n
-    OS=$( . /etc/os-release; echo $ID ) && if echo "$OS" | grep -qiE 'ubuntu|debian|linuxmint'; then sudo apt update && sudo apt install -y xfce4 xfce4-goodies wget libgbm1 libasound2t64 pulseaudio pavucontrol xdg-utils && rm -f /tmp/discord*.deb && wget -q -O /tmp/discord.deb https://discord.com/api/download?platform=linux&format=deb && wget -q -O /tmp/discord-canary.deb https://discord.com/api/download/canary?platform=linux&format=deb && sudo dpkg -i /tmp/discord.deb /tmp/discord-canary.deb || sudo apt -f install -y ; elif echo "$OS" | grep -qiE 'ol|oracle|rhel|rocky|almalinux|centos'; then sudo dnf install -y epel-release && sudo dnf groupinstall -y "Xfce" && sudo dnf install -y wget libgbm pulseaudio pavucontrol xdg-utils && rm -f /tmp/discord*.rpm && wget -q -O /tmp/discord.rpm https://discord.com/api/download?platform=linux&format=rpm && wget -q -O /tmp/discord-canary.rpm https://discord.com/api/download/canary?platform=linux&format=rpm && sudo dnf install -y /tmp/discord.rpm /tmp/discord-canary.rpm ; fi && echo xfce4-session > ~/.xsession && sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord --no-sandbox|' /usr/share/applications/discord.desktop && sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord-canary --no-sandbox|' /usr/share/applications/discord-canary.desktop && sudo systemctl restart xrdp
+
+    # Discord Setup (Expanded from single line for stability)
+    echo "Installing Discord..."
+    OS=$( . /etc/os-release; echo $ID )
+    if echo "$OS" | grep -qiE 'ubuntu|debian|linuxmint'; then 
+        sudo apt update
+        sudo apt install -y xfce4 xfce4-goodies wget libgbm1 libasound2t64 pulseaudio pavucontrol xdg-utils
+        rm -f /tmp/discord*.deb
+        wget -q -O /tmp/discord.deb https://discord.com/api/download?platform=linux\&format=deb
+        wget -q -O /tmp/discord-canary.deb https://discord.com/api/download/canary?platform=linux\&format=deb
+        sudo dpkg -i /tmp/discord.deb /tmp/discord-canary.deb || sudo apt -f install -y
+    elif echo "$OS" | grep -qiE 'ol|oracle|rhel|rocky|almalinux|centos'; then 
+        sudo dnf install -y epel-release
+        sudo dnf groupinstall -y "Xfce"
+        sudo dnf install -y wget libgbm pulseaudio pavucontrol xdg-utils
+        rm -f /tmp/discord*.rpm
+        wget -q -O /tmp/discord.rpm https://discord.com/api/download?platform=linux\&format=rpm
+        wget -q -O /tmp/discord-canary.rpm https://discord.com/api/download/canary?platform=linux\&format=rpm
+        sudo dnf install -y /tmp/discord.rpm /tmp/discord-canary.rpm
+    fi 
+    
+    echo "xfce4-session" > ~/.xsession
+    sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord --no-sandbox|' /usr/share/applications/discord.desktop 2>/dev/null || true
+    sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord-canary --no-sandbox|' /usr/share/applications/discord-canary.desktop 2>/dev/null || true
+    sudo systemctl restart xrdp
 
     # Brave (optional)
     read -p "Install Brave Browser? (y/n): " install_brave
@@ -152,24 +159,43 @@ install_browsers() {
         apt install -y brave-browser
     fi
 
-     sed -i 's|^Exec=.*google-chrome-stable.*|Exec=/usr/bin/google-chrome-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/google-chrome.desktop
-     sed -i 's|^Exec=.*brave-browser.*|Exec=/usr/bin/brave-browser-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/brave-browser.desktop
-     sed -i 's|^Exec=.*chromium.*|Exec=/usr/bin/chromium --no-sandbox --disable-dev-shm-usage|g' ~/Desktop/chromium*.desktop 2>/dev/null
-     sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 XDG_SESSION_TYPE=x11 /usr/bin/discord-canary --no-sandbox|' /usr/share/applications/discord-canary.desktop
-     sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord --no-sandbox|' /usr/share/applications/discord.desktop && sudo sed -i 's|^Exec=.*|Exec=env ELECTRON_OZONE_PLATFORM=x11 /usr/bin/discord-canary --no-sandbox|' /usr/share/applications/discord-canary.desktop
-     mkdir -p ~/Desktop && for f in discord.desktop discord-canary.desktop microsoft-edge.desktop microsoft-edge-stable.desktop brave-browser.desktop chromium.desktop chromium-browser.desktop firefox.desktop google-chrome.desktop google-chrome-stable.desktop; do [ -f /usr/share/applications/$f ] && cp /usr/share/applications/$f ~/Desktop/; done && chmod +x ~/Desktop/*.desktop && for d in ~/Desktop/*.desktop; do gio set "$d" metadata::trusted true; done && xfdesktop --reload
-     sudo snap install snap-store && mkdir -p ~/Desktop && cp /var/lib/snapd/desktop/applications/snap-store_snap-store.desktop ~/Desktop/ && chmod +x ~/Desktop/snap-store_snap-store.desktop && gio set ~/Desktop/snap-store_snap-store.desktop metadata::trusted true && xfdesktop --reload && snap-store     
-     pkill snap-store || true && snap-store --reset || true && rm -rf ~/snap/snap-store/common/* ~/.cache/snap-store && snap-store &
+    # Optimize Desktop Shortcuts
+    sed -i 's|^Exec=.*google-chrome-stable.*|Exec=/usr/bin/google-chrome-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/google-chrome.desktop 2>/dev/null || true
+    sed -i 's|^Exec=.*brave-browser.*|Exec=/usr/bin/brave-browser-stable --no-sandbox --disable-dev-shm-usage|g' /usr/share/applications/brave-browser.desktop 2>/dev/null || true
+    sed -i 's|^Exec=.*chromium.*|Exec=/usr/bin/chromium --no-sandbox --disable-dev-shm-usage|g' ~/Desktop/chromium*.desktop 2>/dev/null || true
+    
+    # Desktop Icon Setup
+    mkdir -p ~/Desktop
+    for f in discord.desktop discord-canary.desktop microsoft-edge.desktop microsoft-edge-stable.desktop brave-browser.desktop chromium.desktop chromium-browser.desktop firefox.desktop google-chrome.desktop google-chrome-stable.desktop; do 
+        [ -f /usr/share/applications/$f ] && cp /usr/share/applications/$f ~/Desktop/
+    done 
+    
+    chmod +x ~/Desktop/*.desktop 2>/dev/null || true
+    for d in ~/Desktop/*.desktop; do 
+        gio set "$d" metadata::trusted true 2>/dev/null || true
+    done 
+    xfdesktop --reload 2>/dev/null || true
 
-# Sabko executable banao
-    chmod +x ~/Desktop/*.desktop
-    echo -e "${G}✅ Browsers installed${N}"
+    # Snap Store Setup
+    sudo apt install -y snapd || true
+    sudo snap install snap-store 2>/dev/null || true
+    mkdir -p ~/Desktop
+    cp /var/lib/snapd/desktop/applications/snap-store_snap-store.desktop ~/Desktop/ 2>/dev/null || true
+    chmod +x ~/Desktop/snap-store_snap-store.desktop 2>/dev/null || true
+    gio set ~/Desktop/snap-store_snap-store.desktop metadata::trusted true 2>/dev/null || true
+    xfdesktop --reload 2>/dev/null || true
+    pkill snap-store || true 
+    snap-store --reset >/dev/null 2>&1 || true 
+    rm -rf ~/snap/snap-store/common/* ~/.cache/snap-store 
+    snap-store &>/dev/null &
+
+    echo -e "${G}✅ Browsers and Apps installed${N}"
 }
 
 start_services() {
     echo -e "${Y}▶ Starting Services...${N}"
     systemctl start xrdp
-    vncserver -localhost no :1
+    vncserver -localhost no :1 2>/dev/null || echo -e "${C}VNC already running.${N}"
     systemctl start novnc
     echo -e "${G}✅ Services Started${N}"
     sleep 1
@@ -192,9 +218,9 @@ status_services() {
     echo -e "${C}════════════════════════════════════════════${N}"
     echo -e "${Y}🔍 Service Status:${N}"
     echo -e "${C}════════════════════════════════════════════${N}"
-    systemctl is-active xrdp && echo -e "xRDP    : ${G}ACTIVE${N}" || echo -e "xRDP    : ${R}INACTIVE${N}"
-    systemctl is-active novnc && echo -e "noVNC   : ${G}ACTIVE${N}" || echo -e "noVNC   : ${R}INACTIVE${N}"
-    netstat -tulpn | grep -E ":3389|:6080|:5901" && echo -e "Ports   : ${G}LISTENING${N}" || echo -e "Ports   : ${R}NOT LISTENING${N}"
+    systemctl is-active --quiet xrdp && echo -e "xRDP    : ${G}ACTIVE${N}" || echo -e "xRDP    : ${R}INACTIVE${N}"
+    systemctl is-active --quiet novnc && echo -e "noVNC   : ${G}ACTIVE${N}" || echo -e "noVNC   : ${R}INACTIVE${N}"
+    netstat -tulpn 2>/dev/null | grep -qE ":3389|:6080|:5901" && echo -e "Ports   : ${G}LISTENING${N}" || echo -e "Ports   : ${R}NOT LISTENING${N}"
     echo -e "${C}════════════════════════════════════════════${N}"
     read -p "Press Enter to continue..."
 }
@@ -202,67 +228,45 @@ status_services() {
 change_vnc_password() {
     echo -e "${Y}🔐 Change VNC Password${N}"
     vncpasswd
-    echo -e "${G}✅ Password changed. Restart VNC to apply.${N}"
+    echo -e "${G}✅ Password changed. Restarting VNC to apply...${N}"
+    vncserver -kill :1 2>/dev/null || true
+    vncserver -localhost no :1
     read -p "Press Enter..."
 }
 
 uninstall_all() {
     echo -e "${R}⚠️  WARNING: This will remove ALL RDP/VNC components${N}"
-  
+    read -p "Are you sure? (y/n): " confirm
+    if [[ ! $confirm =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        return
+    fi
     
-    echo -e "${R}🗑️  Removing everything...${N}"
-    stop_services
+    echo -e "${R}🧨 Stopping services...${N}"
+    systemctl stop xrdp 2>/dev/null || true
+    systemctl stop novnc 2>/dev/null || true
+    vncserver -kill :1 2>/dev/null || true
     
-    # Remove packages
-    apt purge -y xfce4* xrdp tigervnc* novnc websockify \
-        firefox-esr google-chrome-stable chromium brave-browser
+    echo -e "${R}🗑️  Purging packages...${N}"
+    apt purge -y xfce4* xrdp tigervnc-standalone-server tigervnc-common novnc websockify \
+        firefox-esr google-chrome-stable chromium chromium-browser brave-browser
     
-    # Remove configs
-    rm -rf ~/.vnc /etc/systemd/system/novnc.service
+    echo -e "${R}🧹 Removing configs and files...${N}"
+    rm -rf ~/.vnc /etc/xrdp /etc/systemd/system/novnc.service
     rm -f ~/.xsession /etc/skel/.xsession
-    
-    # Clean up
-    apt autoremove -y
-    apt clean
-    echo "🧨 Stopping services..."
-    systemctl stop xrdp || true
-    systemctl stop novnc || true
-    echo "🧹 Removing xRDP..."
-    apt purge -y xrdp
-    rm -rf /etc/xrdp
-    echo "🧹 Removing VNC..."
-    vncserver -kill :1 || true
-    apt purge -y tigervnc-standalone-server tigervnc-common
-    rm -rf ~/.vnc
-
-    echo "🧹 Removing noVNC..."
-    apt purge -y novnc websockify
-    rm -f /etc/systemd/system/novnc.service
-    systemctl daemon-reload
-
-    echo "🧹 Removing Browsers..."
-    apt purge -y \
-      google-chrome-stable \
-      firefox firefox-esr \
-      chromium chromium-browser \
-      brave-browser
-    echo "🧹 Removing browser repos & keys..."
-    rm -f /etc/apt/sources.list.d/google-chrome.list
-    rm -f /etc/apt/sources.list.d/brave-browser-release.list
-    rm -f /usr/share/keyrings/google-chrome.gpg
-    rm -f /usr/share/keyrings/brave-browser-archive-keyring.gpg
-    echo "🧹 Removing Desktop icons..."
+    rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/brave-browser-release.list
+    rm -f /usr/share/keyrings/google-chrome.gpg /usr/share/keyrings/brave-browser-archive-keyring.gpg
     rm -f ~/Desktop/*.desktop
-    echo "🧹 Autoremove & cleanup..."
+    
+    echo -e "${R}🧹 Autoremove & cleanup...${N}"
+    systemctl daemon-reload
     apt autoremove -y
     apt autoclean -y
-    echo "✅ DONE!"
-    echo "System cleaned: xRDP • Browsers • VNC • noVNC removed"
-    systemctl daemon-reload
     
-    echo -e "${G}✅ Uninstall complete${N}"
-    read -p "Press Enter..."
+    echo -e "${G}✅ Uninstall complete! System cleaned.${N}"
+    read -p "Press Enter to return to main menu..."
 }
+
 # Main menu
 while true; do
     header
@@ -273,7 +277,7 @@ while true; do
     echo -e "${G}2) ${W}Start ${N}"
     echo -e "${G}3) ${W}Stop ${N}"
     echo -e "${G}4) ${W}Restart ${N}"
-    echo -e "${G}5) ${W} Status${N}"
+    echo -e "${G}5) ${W}Status${N}"
     echo -e "${G}6) ${W}VNC Password${N}"
     echo -e "${G}7) ${W}Browsers ${N}"
     echo -e "${G}8) ${W}User ${N}"
@@ -291,9 +295,10 @@ while true; do
         5) status_services ;;
         6) change_vnc_password ;;
         7) install_browsers ;;
-        8) bash <(curl -s https://raw.githubusercontent.com/nobita329/The-Coding-Hub/refs/heads/main/srv/tools/xrdp.sh)  ;;
+        8) bash <(curl -sL https://raw.githubusercontent.com/nobita329/The-Coding-Hub/refs/heads/main/srv/tools/xrdp.sh) ;;
         9) uninstall_all ;;
         0) echo -e "${G}Goodbye!${N}"; exit 0 ;;
         *) echo -e "${R}Invalid option${N}"; sleep 1 ;;
     esac
 done
+
