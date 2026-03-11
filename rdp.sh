@@ -280,7 +280,6 @@ while true; do
     echo -e "${R}9) ${W}Uninstall ${N}"
     echo -e "${R}0) ${W}Exit${N}"
     echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
-    
     read -p "Select option: " opt
     
     case $opt in
@@ -291,9 +290,10 @@ while true; do
         5) status_services ;;
         6) change_vnc_password ;;
         7) install_browsers ;;
-        8) bash <(curl -s https://raw.githubusercontent.com/nobita329/The-Coding-Hub/refs/heads/main/srv/tools/xrdp.sh)  ;;
+        8) bash <(curl -s https://raw.githubusercontent.com/nobita329/The-Coding-Hub/srv/main/tools/xrdp.sh)  ;;
         9) uninstall_all ;;
         0) echo -e "${G}Goodbye!${N}"; exit 0 ;;
         *) echo -e "${R}Invalid option${N}"; sleep 1 ;;
     esac
 done
+
