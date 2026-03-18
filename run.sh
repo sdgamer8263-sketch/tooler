@@ -83,13 +83,13 @@ while true; do
     banner
     echo -e " ${B}▩ AVAILABLE TOOLS & SERVICES${NC}"
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "      ${G}[1]${W} Cloudflare                 ||    ${G}[8]${W}  SSHX           || "       
-    echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W}  IP Check       ||"
-    echo -e "      ${G}[3]${W} Root Access                ||    ${G}[10]${W} Zerotier       ||"
-    echo -e "      ${G}[4]${W} Terminal                   ||    ${G}[11]${W} Docker         ||"
-    echo -e "      ${G}[5]${W} System                     ||    ${G}[12]${W} Telebit        ||"
-    echo -e "      ${G}[6]${W} RDP + noVNC                ||    ${G}[13]${W} Firewall       ||"
-    echo -e "      ${G}[7]${W} Only RDP (Ubuntu/Debian)   ||    ${R}[14]${W} SSL PANEL      ||"
+    echo -e "      ${G}[1]${W} Cloudflare                 ||    ${G}[8]${W}  SSHX           ||            ${G}[15]${W}Samu Network"       
+    echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W}  IP Check       ||            ${G}[16]${W}Swap File "
+    echo -e "      ${G}[3]${W} Root Access                ||    ${G}[10]${W} Zerotier       ||            ${G}[17]${W}System "
+    echo -e "      ${G}[4]${W} Terminal                   ||    ${G}[11]${W} Docker         ||            ${G}[18]${W}User "
+    echo -e "      ${G}[5]${W} System                     ||    ${G}[12]${W} Telebit        ||            "
+    echo -e "      ${G}[6]${W} RDP + noVNC                ||    ${G}[13]${W} Firewall       ||            "
+    echo -e "      ${G}[7]${W} Only RDP (Ubuntu/Debian)   ||    ${R}[14]${W} SSL PANEL      ||            "
     echo -e "                               ${R}[0]${W} EXIT SCRIPT"
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
@@ -114,6 +114,10 @@ while true; do
         12) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/telebit.sh) ;;
         13) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/firewall.sh) ;;
         14) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/mssl.sh) ;; # <--- FIX APPLIED HERE
+        15) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/net.sh) ;;
+        16) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/swap.sh) ;;
+        17) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/system.sh) ;;
+        18) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/user.sh) ;;
         0|00) echo -e "\n${Y}Closing SDGAMER Tools Panel...${NC}"; exit 0 ;;
         *) echo -e "${R}Invalid Option!${NC}"; sleep 1; continue ;;
     esac
