@@ -93,7 +93,7 @@ while true; do
     echo -e "                               ${R}[0]${W} EXIT SCRIPT"
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -en "${Y} ⚡ Select Option [0-13]: ${NC}"
+    echo -en "${Y} ⚡ Select Option [0-14]: ${NC}"
     read -r main_choice
 
     case "$main_choice" in
@@ -113,7 +113,7 @@ while true; do
         11) bash <(curl -s https://raw.githubusercontent.com/nobita329/ptero/refs/heads/main/ptero/vps/Docker.sh) ;;
         12) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/telebit.sh) ;;
         13) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/firewall.sh) ;;
-        14) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/mssl.sh);;
+        14) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/mssl.sh) ;; # <--- FIX APPLIED HERE
         0|00) echo -e "\n${Y}Closing SDGAMER Tools Panel...${NC}"; exit 0 ;;
         *) echo -e "${R}Invalid Option!${NC}"; sleep 1; continue ;;
     esac
@@ -122,4 +122,3 @@ while true; do
     echo -en "${W}Press ${Y}[ENTER]${W} to return to Main Menu...${NC}"
     read -r
 done
-
