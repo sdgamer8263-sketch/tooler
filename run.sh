@@ -82,15 +82,16 @@ show_rdp_menu() {
 while true; do
     banner
     echo -e " ${B}▩ AVAILABLE TOOLS & SERVICES${NC}"
-    echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "      ${G}[1]${W} Cloudflare                 ||    ${G}[8]${W} SSHX"
-    echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W} IP Check"
-    echo -e "      ${G}[3]${W} Root Access                ||   ${G}[10]${W} Zerotier"
-    echo -e "      ${G}[4]${W} Terminal                   ||   ${G}[11]${W} Docker"
-    echo -e "      ${G}[5]${W} System                     ||   ${G}[12]${W} Telebit"
-    echo -e "      ${G}[6]${W} RDP + noVNC                ||   ${G}[13]${W} Firewall"
-    echo -e "      ${G}[7]${W} Only RDP (Ubuntu/Debian)   ||    ${R}[0]${W} EXIT SCRIPT"
-    echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "      ${G}[1]${W} Cloudflare                 ||    ${G}[8]${W}  SSHX           || "       
+    echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W}  IP Check       ||"
+    echo -e "      ${G}[3]${W} Root Access                ||    ${G}[10]${W} Zerotier       ||"
+    echo -e "      ${G}[4]${W} Terminal                   ||    ${G}[11]${W} Docker         ||"
+    echo -e "      ${G}[5]${W} System                     ||    ${G}[12]${W} Telebit        ||"
+    echo -e "      ${G}[6]${W} RDP + noVNC                ||    ${G}[13]${W} Firewall       ||"
+    echo -e "      ${G}[7]${W} Only RDP (Ubuntu/Debian)   ||    ${R}[14]${W} SSL PANEL      ||"
+    echo -e "                               ${R}[0]${W} EXIT SCRIPT"
+    echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -en "${Y} ⚡ Select Option [0-13]: ${NC}"
     read -r main_choice
@@ -112,6 +113,7 @@ while true; do
         11) bash <(curl -s https://raw.githubusercontent.com/nobita329/ptero/refs/heads/main/ptero/vps/Docker.sh) ;;
         12) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/telebit.sh) ;;
         13) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/firewall.sh) ;;
+        14) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/mssl.sh)
         0|00) echo -e "\n${Y}Closing SDGAMER Tools Panel...${NC}"; exit 0 ;;
         *) echo -e "${R}Invalid Option!${NC}"; sleep 1; continue ;;
     esac
