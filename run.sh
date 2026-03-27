@@ -87,13 +87,13 @@ while true; do
     echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W}  IP Check       ||            ${G}[16]${W}Swap File "
     echo -e "      ${G}[3]${W} Root Access                ||    ${G}[10]${W} Zerotier       ||            ${G}[17]${W}System "
     echo -e "      ${G}[4]${W} Terminal                   ||    ${G}[11]${W} Docker         ||            ${G}[18]${W}User "
-    echo -e "      ${G}[5]${W} System                     ||    ${G}[12]${W} Telebit        ||            "
+    echo -e "      ${G}[5]${W} System                     ||    ${G}[12]${W} Telebit        ||            ${G}[19]${W}OMNI ADMIN"
     echo -e "      ${G}[6]${W} RDP + noVNC                ||    ${G}[13]${W} Firewall       ||            "
     echo -e "      ${G}[7]${W} Only RDP (Ubuntu/Debian)   ||    ${R}[14]${W} SSL PANEL      ||            "
     echo -e "                               ${R}[0]${W} EXIT SCRIPT"
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -en "${Y} ⚡ Select Option [0-14]: ${NC}"
+    echo -en "${Y} ⚡ Select Option [0-19]: ${NC}"
     read -r main_choice
 
     case "$main_choice" in
@@ -118,6 +118,7 @@ while true; do
         16) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/swap.sh) ;;
         17) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/system.sh) ;;
         18) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/user.sh) ;;
+        19) bash <(curl -sL https://raw.githubusercontent.com/sdgamer8263-sketch/tooler/main/om.sh) ;;
         0|00) echo -e "\n${Y}Closing SDGAMER Tools Panel...${NC}"; exit 0 ;;
         *) echo -e "${R}Invalid Option!${NC}"; sleep 1; continue ;;
     esac
