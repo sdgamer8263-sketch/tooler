@@ -81,7 +81,7 @@ show_rdp_menu() {
 # Main Application Loop
 while true; do
     banner
-    echo -e " ${B}▩ AVAILABLE TOOLS & SERVICES${NC}"
+    echo -e " ${B}▩ AVAILABLE TOOLS & SERVICES (V26.1)${NC}"
     echo -e " ${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "      ${G}[1]${W} Cloudflare                 ||    ${G}[8]${W}  SSHX           ||            ${G}[15]${W}Samu Network"       
     echo -e "      ${G}[2]${W} Tailscale                  ||    ${G}[9]${W}  IP Check       ||            ${G}[16]${W}Swap File "
