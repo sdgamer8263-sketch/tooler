@@ -53,6 +53,7 @@ install_tailscale() {
     echo -e "${BLUE}Please authenticate in your browser when prompted${NC}"
     echo ""
     sudo tailscale up
+    sudo tailscale up -ssh
     
     echo -e "\n${GREEN}${BOLD}════════════════════════════════════════════${NC}"
     echo -e "${GREEN}${BOLD}✅ TAILSCALE INSTALLATION COMPLETE!${NC}"
