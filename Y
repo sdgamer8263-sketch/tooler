@@ -1,0 +1,561 @@
+#!/bin/bash
+
+# =============================================
+#  HyperV1 Theme Installer / Upgrader
+#  Compatible: Ubuntu, Debian, Fedora, CentOS, Arch, etc.
+# =============================================
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+USE_LOCAL_FILES=0
+
+for _arg in "$@"; do
+    case "$_arg" in
+        --local) USE_LOCAL_FILES=1 ;;
+    esac
+done
+unset _arg
+
+if [[ "$EUID" -ne 0 ]]; then
+    echo "Error: This script must be run as root or with sudo privileges."
+    exit 1
+fi
+
+read -rp "Enter your Pterodactyl panel path [/var/www/pterodactyl]: " PANEL_PATH
+PANEL_PATH=${PANEL_PATH:-/var/www/pterodactyl}
+
+if [[ ! -d "$PANEL_PATH" ]]; then
+    echo "Error: Path $PANEL_PATH does not exist!"
+    exit 1
+fi
+
+echo ""
+echo "=============================="
+echo "   HyperV1 Theme Installer"
+echo "=============================="
+echo "1) Install HyperV1 Theme"
+echo "2) Upgrade HyperV1 Theme"
+echo "3) Restore from Backup"
+echo "=============================="
+read -rp "Choose an option (1, 2, or 3): " OPTION
+
+backup_panel() {
+    echo "Backing up your panel files (excluding vendor/, logs, cache)..."
+    cd /var/www || exit
+    tar -czf "pterodactyl_backup_$(date +%Y%m%d_%H%M%S).tar.gz" \
+        --exclude='pterodactyl/vendor' \
+        --exclude='pterodactyl/node_modules' \
+        --exclude='pterodactyl/storage/logs' \
+        --exclude='pterodactyl/storage/framework/cache' \
+        pterodactyl/
+    local tar_exit=$?
+    if [ $tar_exit -eq 2 ]; then
+        echo "Backup failed (fatal tar error)."
+        exit 1
+    fi
+    echo "Backup completed."
+}
+
+backup_hyperv1() {
+    echo "Backing up HyperV1 theme and settings..."
+    cd "$PANEL_PATH" || exit
+    
+    local dump_script="$PANEL_PATH/dump_hyper_settings.php"
+    cat << 'EOF' > "$dump_script"
+$settings = DB::table('settings')->where('key', 'like', '%theme%')->orWhere('key', 'like', '%hyper%')->get();
+$sql = "/* HyperV1 Settings Backup */\n";
+foreach ($settings as $setting) {
+    $key = addslashes($setting->key);
+    $value = addslashes($setting->value);
+    $sql .= "INSERT INTO `settings` (`key`, `value`) VALUES ('$key', '$value') ON DUPLICATE KEY UPDATE `value`=VALUES(`value`);\n";
+}
+file_put_contents('/var/www/pterodactyl/hyperv1_settings_backup.sql', $sql);
+EOF
+    
+    echo "Exporting settings using Artisan..."
+    php artisan tinker < "$dump_script" >/dev/null 2>&1 || true
+    rm -f "$dump_script"
+    
+    local backup_name="hyperv1_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+    echo "Creating theme archive: $backup_name"
+    cd /var/www || exit
+    tar -czf "$backup_name" pterodactyl/rolexdev/ pterodactyl/public/rolexdev/ pterodactyl/public/assets/hyper* pterodactyl/hyperv1_settings_backup.sql 2>/dev/null || true
+    rm -f pterodactyl/hyperv1_settings_backup.sql
+    echo "HyperV1 Backup completed: /var/www/$backup_name"
+}
+
+
+manage_backups() {
+
+    mapfile -t BACKUPS < <(find /var/www -type f -name "pterodactyl_backup_*.tar.gz" -print | sort -r)
+    if [ ${#BACKUPS[@]} -eq 0 ]; then
+        return
+    fi
+    echo "Existing backups (newest first):"
+    for i in "${!BACKUPS[@]}"; do
+        echo "$((i+1))) ${BACKUPS[$i]}"
+    done
+    MOST_RECENT="${BACKUPS[0]}"
+    echo "The most recent backup is $MOST_RECENT"
+    read -rp "Do you want to delete some old backups? (y/N): " DELETE_OLD
+    if [[ "$DELETE_OLD" =~ ^[Yy]$ ]]; then
+        echo "Enter the numbers of backups to delete (space separated): "
+        read -r TO_DELETE
+        for num in $TO_DELETE; do
+            if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le ${#BACKUPS[@]} ]; then
+                SELECTED="${BACKUPS[$((num-1))]}"
+                if [ "$SELECTED" = "$MOST_RECENT" ]; then
+                    read -rp "Are you sure you want to delete the most recent backup $SELECTED? (y/N): " CONFIRM_DELETE_RECENT
+                    if [[ "$CONFIRM_DELETE_RECENT" =~ ^[Yy]$ ]]; then
+                        rm "$SELECTED"
+                        echo "Deleted $SELECTED"
+                    fi
+                else
+                    rm "$SELECTED"
+                    echo "Deleted $SELECTED"
+                fi
+            fi
+        done
+    fi
+}
+
+remove_old_assets() {
+    echo "Removing old build files..."
+    find "$PANEL_PATH/public/assets" -type f \( -name "*.js" -o -name "*.json" -o -name "*.js.map" \) -delete
+}
+
+install_hyperv1_files() {
+    echo "Downloading and extracting HyperV1 theme..."
+    cd "$PANEL_PATH" || exit
+    TAR_FILE="Hyperv1.tar"
+    DOWNLOAD_URL="https://r2.rolexdev.tech/hyperv1/Hyperv1.tar"
+
+    rm -f "$TAR_FILE" || true
+
+    if [[ "$USE_LOCAL_FILES" == "1" ]]; then
+        if [[ -f "${SCRIPT_DIR}/Hyperv1.tar" ]]; then
+            echo "[--local] Using local Hyperv1.tar from ${SCRIPT_DIR}."
+            cp "${SCRIPT_DIR}/Hyperv1.tar" "$TAR_FILE"
+        else
+            echo "Error: --local specified but Hyperv1.tar not found in ${SCRIPT_DIR}" >&2
+            exit 1
+        fi
+    elif command -v curl >/dev/null 2>&1; then
+        echo "Attempting download with curl..."
+        if curl -f --retry 3 --retry-delay 2 --progress-bar -o "$TAR_FILE" "$DOWNLOAD_URL"; then
+            echo "Downloaded Hyperv1.tar with curl"
+        else
+            echo "curl failed, attempting wget..."
+            if command -v wget >/dev/null 2>&1 && wget --show-progress -O "$TAR_FILE" "$DOWNLOAD_URL"; then
+                echo "Downloaded Hyperv1.tar with wget"
+            else
+                echo "Error: failed to download Hyperv1.tar with curl and wget"
+                rm -f "$TAR_FILE" || true
+                exit 1
+            fi
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        echo "curl not found; downloading with wget..."
+        if wget --show-progress -O "$TAR_FILE" "$DOWNLOAD_URL"; then
+            echo "Downloaded Hyperv1.tar with wget"
+        else
+            echo "Error: wget failed to download Hyperv1.tar"
+            rm -f "$TAR_FILE" || true
+            exit 1
+        fi
+    else
+        echo "Error: neither curl nor wget is available to download Hyperv1.tar"
+        exit 1
+    fi
+
+    echo "Removing app/ directory before extraction..."
+    rm -rf "$PANEL_PATH/app"
+    echo "Extracting $TAR_FILE..."
+    tar -xf "$TAR_FILE" --overwrite
+}
+
+set_permissions() {
+    echo "Setting correct permissions..."
+    chown -R www-data:www-data "$PANEL_PATH"/*
+    chmod -R 755 "$PANEL_PATH"/storage/* "$PANEL_PATH"/bootstrap/cache/
+    
+    if [[ -f "$PANEL_PATH/storage/app/discord_bot_heartbeat" ]]; then
+        chown www-data:www-data "$PANEL_PATH/storage/app/discord_bot_heartbeat"
+        echo "Fixed permissions for discord_bot_heartbeat"
+    fi
+}
+
+set_fetch_permissions() {
+    echo "Setting executable permissions for hyper_fetch and hyper_auto_update_ioncube (if present)..."
+
+    if [[ -z "${PANEL_PATH:-}" ]]; then
+        echo "PANEL_PATH not set; skipping fetch permission step."
+        return
+    fi
+
+    FETCH_FILE="$PANEL_PATH/hyper_fetch.sh"
+    AUTO_UPDATE_FILE="$PANEL_PATH/hyper_auto_update_ioncube.sh"
+
+    if [[ -f "$FETCH_FILE" ]]; then
+        chmod +x "$FETCH_FILE" || true
+        chown www-data:www-data "$FETCH_FILE" || true
+        echo "Set executable on $FETCH_FILE"
+    else
+        echo "Warning: $FETCH_FILE not found; it may be extracted later."
+    fi
+
+    if [[ -f "$AUTO_UPDATE_FILE" ]]; then
+        chmod +x "$AUTO_UPDATE_FILE" || true
+        chown www-data:www-data "$AUTO_UPDATE_FILE" || true
+        echo "Set executable on $AUTO_UPDATE_FILE"
+    fi
+    if [[ -f "$PANEL_PATH/hyper_auto_update.sh" ]]; then
+        chmod +x "$PANEL_PATH/hyper_auto_update.sh" || true
+        chown www-data:www-data "$PANEL_PATH/hyper_auto_update.sh" || true
+    fi
+
+    SUDOERS_FILE="/etc/sudoers.d/hyper_update"
+    echo "Creating sudoers entry at $SUDOERS_FILE"
+    printf 'www-data ALL=(ALL) NOPASSWD: %s/hyper_fetch.sh, %s/hyper_auto_update.sh, %s/hyper_auto_update_ioncube.sh\n' "$PANEL_PATH" "$PANEL_PATH" "$PANEL_PATH" > "$SUDOERS_FILE"
+    chmod 0440 "$SUDOERS_FILE" || true
+
+    if command -v visudo >/dev/null 2>&1; then
+        if visudo -cf "$SUDOERS_FILE" >/dev/null 2>&1; then
+            echo "Sudoers file $SUDOERS_FILE validated"
+        else
+            echo "Warning: sudoers validation failed for $SUDOERS_FILE"
+        fi
+    else
+        echo "Note: visudo not found; skipping sudoers syntax validation"
+    fi
+}
+
+fix_cron() {
+    echo "Setting up Laravel scheduler via Supervisor (schedule:work)..."
+
+    for user in root www-data nginx apache; do
+        if id "$user" &>/dev/null || [ "$user" = "root" ]; then
+            local ctab
+            if [ "$user" = "root" ]; then
+                ctab=$(crontab -l 2>/dev/null) || true
+            else
+                ctab=$(crontab -u "$user" -l 2>/dev/null) || true
+            fi
+            if echo "$ctab" | grep -Fq "php /var/www/pterodactyl/artisan schedule:run"; then
+                echo "Removing schedule:run from $user crontab..."
+                if [ "$user" = "root" ]; then
+                    (crontab -l 2>/dev/null | grep -Fv "php /var/www/pterodactyl/artisan schedule:run") | crontab -
+                else
+                    (crontab -u "$user" -l 2>/dev/null | grep -Fv "php /var/www/pterodactyl/artisan schedule:run") | crontab -u "$user" -
+                fi
+            fi
+        fi
+    done
+
+    if grep -rFq "php /var/www/pterodactyl/artisan schedule:run" /etc/cron.d/ 2>/dev/null; then
+        echo "Removing schedule:run from /etc/cron.d/..."
+        grep -rlF "php /var/www/pterodactyl/artisan schedule:run" /etc/cron.d/ | xargs sed -i '/php \/var\/www\/pterodactyl\/artisan schedule:run/d'
+    fi
+
+    if ! command -v supervisord &>/dev/null; then
+        echo "Supervisor not found. Installing..."
+        apt-get install -y supervisor &>/dev/null || { echo "Failed to install supervisor"; return 1; }
+        systemctl enable supervisor &>/dev/null
+        systemctl start supervisor &>/dev/null
+    fi
+
+    chown -R www-data:www-data /var/www/pterodactyl/storage 2>/dev/null
+
+    mkdir -p /var/log/pterodactyl
+    chown www-data:www-data /var/log/pterodactyl
+
+    local CONF="/etc/supervisor/conf.d/pterodactyl-scheduler.conf"
+
+    if supervisorctl status pterodactyl-scheduler 2>/dev/null | grep -q "RUNNING"; then
+        echo "pterodactyl-scheduler is already running via Supervisor. Skipping setup."
+        return 0
+    fi
+
+    echo "Creating Supervisor config for pterodactyl-scheduler..."
+    cat > "$CONF" <<'EOF'
+[program:pterodactyl-scheduler]
+command=php /var/www/pterodactyl/artisan schedule:work
+user=www-data
+autostart=true
+autorestart=true
+startretries=3
+stderr_logfile=/var/log/pterodactyl/scheduler.err.log
+stdout_logfile=/dev/null
+EOF
+
+    supervisorctl reread &>/dev/null
+    supervisorctl update &>/dev/null
+
+    if supervisorctl status pterodactyl-scheduler 2>/dev/null | grep -q "RUNNING"; then
+        echo "pterodactyl-scheduler started successfully via Supervisor."
+    else
+        supervisorctl start pterodactyl-scheduler &>/dev/null
+        echo "pterodactyl-scheduler started."
+    fi
+}
+
+configure_reverse_proxy_permissions() {
+    echo "Configuring permissions for Reverse Proxy addon..."
+
+    if id "www-data" &>/dev/null; then
+        WEB_USER="www-data"
+    elif id "nginx" &>/dev/null; then
+        WEB_USER="nginx"
+    elif id "apache" &>/dev/null; then
+        WEB_USER="apache"
+    else
+        echo "Warning: Could not detect web user (www-data, nginx, or apache). Skipping sudoers configuration."
+        return
+    fi
+    echo "Detected web user: $WEB_USER"
+
+    if ! command -v nginx &>/dev/null; then
+        echo "Warning: NGINX is not installed. Reverse Proxy addon requires NGINX."
+    fi
+    if ! command -v certbot &>/dev/null; then
+        echo "Warning: Certbot is not installed. SSL generation will not work."
+    fi
+
+    SUDOERS_FILE="/etc/sudoers.d/pterodactyl-reverse-proxy"
+    BACKUP_FILE="${SUDOERS_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
+    WRAPPER_DEST="/usr/local/bin/ptero-reverse-proxy-helper"
+
+    LEGACY_WRAPPERS=("/usr/bin/ptero-reverse-proxy-helper" "/usr/local/sbin/ptero-reverse-proxy-helper" "/usr/local/bin/ptero-reverse-proxy-helper")
+    for lw in "${LEGACY_WRAPPERS[@]}"; do
+        if [[ -f "$lw" ]]; then
+            echo "Removing legacy wrapper $lw"
+            rm -f "$lw" || true
+        fi
+    done
+
+    if [[ -f "$SUDOERS_FILE" ]]; then
+        echo "Backing up and removing existing sudoers file $SUDOERS_FILE to $BACKUP_FILE"
+        cp -a "$SUDOERS_FILE" "$BACKUP_FILE" || true
+        rm -f "$SUDOERS_FILE" || true
+    fi
+
+    echo "Creating robust wrapper at $WRAPPER_DEST"
+    cat > "$WRAPPER_DEST" <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+allowed_site_dir="/etc/nginx/sites-enabled"
+allowed_ssl_dir="/etc/nginx/ssl"
+
+realpath_safe() {
+    command -v realpath >/dev/null 2>&1 || { echo "realpath required" >&2; exit 1; }
+    realpath -m "$1"
+}
+
+is_under_dir() {
+    local path; local dir
+    path=$(realpath_safe "$1")
+    dir=$(realpath_safe "$2")
+    case "$path" in
+        "$dir"|"$dir"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+ensure_domain_filename() {
+    local filename="$1"
+    if [[ ! $filename =~ ^[a-zA-Z0-9._-]+(\.conf|\.crt|\.key)$ ]]; then
+        echo "Filename must be <domain>.conf|.crt|.key; got $filename" >&2
+        exit 1
+    fi
+}
+
+ensure_source_in_tmp() {
+    local src="$1"
+    if [[ ! $src =~ ^/tmp/ ]]; then
+        echo "Source must be under /tmp/" >&2
+        exit 1
+    fi
+    if [[ ! -f "$src" ]]; then
+        echo "Source file not found: $src" >&2
+        exit 1
+    fi
+}
+
+case "$1" in
+    mv)
+        if [[ $# -ne 3 ]]; then echo "Usage: $0 mv <src> <dest>" >&2; exit 1; fi
+        ensure_source_in_tmp "$2"
+        dest_real=$(realpath_safe "$3")
+        if is_under_dir "$dest_real" "$allowed_site_dir"; then
+            ensure_domain_filename "$(basename "$dest_real")"
+            mv -- "$2" "$dest_real"
+            chown root:root "$dest_real"
+            chmod 644 "$dest_real"
+        elif is_under_dir "$dest_real" "$allowed_ssl_dir"; then
+            ensure_domain_filename "$(basename "$dest_real")"
+            mv -- "$2" "$dest_real"
+            chown root:root "$dest_real"
+            if [[ "$dest_real" =~ \.key$ ]]; then
+                chmod 600 "$dest_real"
+            else
+                chmod 644 "$dest_real"
+            fi
+        else
+            echo "Destination not allowed: $dest_real" >&2
+            exit 1
+        fi
+        ;;
+    rm)
+        if [[ $# -ne 2 ]]; then echo "Usage: $0 rm <path>" >&2; exit 1; fi
+        target=$(realpath_safe "$2")
+        if is_under_dir "$target" "$allowed_site_dir" || is_under_dir "$target" "$allowed_ssl_dir"; then
+            rm -f -- "$target"
+        else
+            echo "Can only remove files under $allowed_site_dir or $allowed_ssl_dir" >&2
+            exit 1
+        fi
+        ;;
+    chown-root)
+        if [[ $# -ne 2 ]]; then echo "Usage: $0 chown-root <path>" >&2; exit 1; fi
+        target=$(realpath_safe "$2")
+        if is_under_dir "$target" "$allowed_site_dir" || is_under_dir "$target" "$allowed_ssl_dir"; then
+            chown root:root "$target"
+        else
+            echo "Can only chown files under $allowed_site_dir or $allowed_ssl_dir" >&2
+            exit 1
+        fi
+        ;;
+    chmod)
+        if [[ $# -ne 3 ]]; then echo "Usage: $0 chmod <mode> <path>" >&2; exit 1; fi
+        mode="$2"; target=$(realpath_safe "$3")
+        if [[ "$mode" != "644" && "$mode" != "600" ]]; then echo "Only modes 644 and 600 are allowed" >&2; exit 1; fi
+        if is_under_dir "$target" "$allowed_site_dir" || is_under_dir "$target" "$allowed_ssl_dir"; then
+            chmod "$mode" "$target"
+        else
+            echo "Can only chmod files under $allowed_site_dir or $allowed_ssl_dir" >&2
+            exit 1
+        fi
+        ;;
+    mkdir)
+        if [[ $# -ne 3 || "$2" != "-p" ]]; then echo "Usage: $0 mkdir -p <path>" >&2; exit 1; fi
+        path=$(realpath_safe "$3")
+        if [[ "$path" != "$allowed_ssl_dir" ]]; then echo "Only mkdir -p $allowed_ssl_dir allowed" >&2; exit 1; fi
+        mkdir -p "$path"
+        chown root:root "$path"
+        ;;
+    nginx-test)
+        nginx -t
+        ;;
+    nginx-reload)
+        service nginx reload
+        ;;
+    certbot-issue)
+        if [[ $# -ne 3 ]]; then echo "Usage: $0 certbot-issue <domain> <email>" >&2; exit 1; fi
+        certbot --nginx -d "$2" --non-interactive --agree-tos --email "$3" --redirect
+        ;;
+    certbot-delete)
+        if [[ $# -ne 2 ]]; then echo "Usage: $0 certbot-delete <domain>" >&2; exit 1; fi
+        certbot delete --cert-name "$2" --non-interactive
+        ;;
+    *)
+        echo "Unknown command" >&2; exit 1
+        ;;
+esac
+WRAPPER
+    chown root:root "$WRAPPER_DEST" || true
+    chmod 0750 "$WRAPPER_DEST" || true
+
+    echo "Creating minimal sudoers file allowing only the wrapper script"
+    cat <<EOF > "$SUDOERS_FILE"
+$WEB_USER ALL=(ALL) NOPASSWD: /usr/local/bin/ptero-reverse-proxy-helper
+EOF
+
+    chmod 0440 "$SUDOERS_FILE" || true
+
+    if command -v visudo >/dev/null 2>&1; then
+        if visudo -cf "$SUDOERS_FILE" >/dev/null 2>&1; then
+            echo "Sudoers file $SUDOERS_FILE validated"
+        else
+            echo "Warning: sudoers validation failed for $SUDOERS_FILE; restoring backup"
+            cp -a "$BACKUP_FILE" "$SUDOERS_FILE" || true
+        fi
+    fi
+
+    mkdir -p /etc/nginx/sites-enabled
+    mkdir -p /etc/nginx/ssl
+    echo "Ensured /etc/nginx/sites-enabled and /etc/nginx/ssl exist."
+
+    OLD_SUDOERS="/etc/sudoers.d/pterodactyl-reverse-proxy-old"
+    if [[ -f "$OLD_SUDOERS" ]]; then
+        echo "Removing legacy sudoers fragment: $OLD_SUDOERS"
+        rm -f "$OLD_SUDOERS" || true
+    fi
+
+    LEGACY_WRAPPERS=("/usr/bin/ptero-reverse-proxy-helper" "/usr/local/sbin/ptero-reverse-proxy-helper")
+    for lw in "${LEGACY_WRAPPERS[@]}"; do
+        if [[ -f "$lw" && ! -f "$WRAPPER_DEST" ]]; then
+            echo "Removing legacy wrapper $lw"
+            rm -f "$lw" || true
+        fi
+    done
+}
+
+clear_cache() {
+    echo "Clearing Laravel cache..."
+    cd "$PANEL_PATH" || exit
+    php artisan config:clear
+    php artisan cache:clear
+    php artisan route:clear
+    php artisan view:clear
+    php artisan optimize
+    php artisan queue:restart
+}
+
+migrate_db() {
+    echo "Migrating database..."
+    cd "$PANEL_PATH" || exit
+    php artisan migrate --force
+
+    echo "Configuring seeders to only seed specific Hyper Eggs & Nests..."
+    cp database/Seeders/NestSeeder.php database/Seeders/NestSeeder.php.bak 2>/dev/null || true
+    cp database/Seeders/EggSeeder.php database/Seeders/EggSeeder.php.bak 2>/dev/null || true
+
+    if [[ -f database/Seeders/NestSeeder.php ]]; then
+        sed -i 's/$this->createMinecraftNest/\/\/$this->createMinecraftNest/g' database/Seeders/NestSeeder.php
+        sed -i 's/$this->createSourceEngineNest/\/\/$this->createSourceEngineNest/g' database/Seeders/NestSeeder.php
+        sed -i 's/$this->createVoiceServersNest/\/\/$this->createVoiceServersNest/g' database/Seeders/NestSeeder.php
+        sed -i 's/$this->createRustNest/\/\/$this->createRustNest/g' database/Seeders/NestSeeder.php
+    fi
+
+    if [[ -f database/Seeders/EggSeeder.php ]]; then
+        sed -i "/'Minecraft',/d" database/Seeders/EggSeeder.php
+        sed -i "/'Source Engine',/d" database/Seeders/EggSeeder.php
+    fi
+}
+
+case $OPTION in
+    1|2)
+        backup_panel
+        backup_hyperv1
+        manage_backups
+        remove_old_assets
+        install_hyperv1_files
+        set_permissions
+        set_fetch_permissions
+        fix_cron
+        configure_reverse_proxy_permissions
+        clear_cache
+        migrate_db
+        echo "Installation/Upgrade complete!"
+        ;;
+    3)
+        echo "Restore functionality not fully implemented in this snippet."
+        ;;
+    *)
+        echo "Invalid option."
+        exit 1
+        ;;
+esac
+
