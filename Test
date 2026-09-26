@@ -1,0 +1,78 @@
+systemctl stop docker containerd 2>/dev/null
+apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker.io runc crun 2>/dev/null
+rm -rf /var/lib/docker /var/lib/containerd /etc/docker/daemon.json
+apt-mark unhold docker-ce docker-ce-cli containerd.io 2>/dev/null
+
+# 2. Set up the correct Official Docker Repository
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+apt-get update
+
+# 3. Pre-configure the VFS Storage Driver Fix
+mkdir -p /etc/docker
+cat << 'EOF' > /etc/docker/daemon.json
+{
+  "storage-driver": "vfs"
+}
+EOF
+
+# 4. Find the highly compatible versions (containerd 1.6.x + Docker v26)
+SAFE_CONTAINERD=$(apt-cache madison containerd.io | grep -m 1 '1.6.' | awk '{print $3}')
+DOCKER_VER=$(apt-cache madison docker-ce | grep -m 1 '5:26.' | awk '{print $3}')
+CLI_VER=$(apt-cache madison docker-ce-cli | grep -m 1 '5:26.' | awk '{print $3}')
+
+# 5. Force install these exact versions side-by-side
+apt-get install -y --allow-downgrades containerd.io="$SAFE_CONTAINERD" docker-ce="$DOCKER_VER" docker-ce-cli="$CLI_VER" docker-compose-plugin
+
+# 6. Lock them so Ubuntu doesn't break the server with auto-updates again
+apt-mark hold containerd.io docker-ce docker-ce-cli
+
+# 7. Start the daemon and run the final test
+systemctl enable --now containerd docker
+docker run hello-world
+cat << 'EOF' > /etc/docker/daemon.json
+{
+  "storage-driver": "vfs",
+  "iptables": true,
+  "dns": [
+    "1.1.1.1",
+    "8.8.8.8"
+  ]
+}
+EOF
+
+
+systemctl restart docker
+docker network create --driver=bridge pterodactyl0 2>/dev/null || true
+sudo systemctl stop wings 
+docker network rm pterodactyl0
+docker network rm pterodactyl_nw 
+docker network prune -f
+
+
+
+
+#2. Create the primary network that
+
+matches your config.yml
+
+docker network create \
+
+--driver=bridge \
+
+--subnet=10.240.0.0/16 \
+
+--gateway=10.240.0.1\
+
+pterodactyl_nw
+
+docker network rm pterodactyl_nw 2>/dev/null || true
+docker network create --driver=bridge --subnet=10.240.0.0/16 --gateway=10.240.0.1 pterodactyl_nw
+
+
+sudo mkdir -p /etc/pterodactyl
+curl -L -o /usr/local/bin/wings "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_$([[ "$(uname -m)" == "x86_64" ]] && echo "amd64" || echo "arm64")"
+sudo chmod u+x /usr/local/bin/wings
+
+sudo nano /etc/pterodactyl/config.yml
